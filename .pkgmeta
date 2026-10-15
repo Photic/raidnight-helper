@@ -1,0 +1,8 @@
+package-as: RaidnightHelper
+
+move-folders:
+  RaidnightHelper/src: RaidnightHelper
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown

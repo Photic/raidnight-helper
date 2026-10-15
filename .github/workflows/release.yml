@@ -1,0 +1,30 @@
+name: Package & Publish
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write   # lets GITHUB_TOKEN create the GitHub Release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # needed so changelog/versioning works properly
+
+      - name: Update version in .toc file
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          sed -i "s/^## Version:.*/## Version: $VERSION/" "src/RaidnightHelper.toc"
+          echo "Updated .toc version to $VERSION"
+
+      - name: Package and upload
+        uses: BigWigsMods/packager@v2
+        env:
+          CF_API_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          GH_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}

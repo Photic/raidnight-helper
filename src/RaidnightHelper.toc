@@ -1,5 +1,5 @@
-## Interface: 120007, 120100
-## Title: RaidSort
+## Interface: 120100, 120105
+## Title: Raidnight Helper
 ## Notes: Indsæt en gruppeopstilling (tekst eller RS1-kode) og sorter raidet automatisk.
 ## Author: Photic
 ## Version: 1.0.0

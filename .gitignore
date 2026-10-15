@@ -1,0 +1,7 @@
+# packager output
+.release/
+
+# packager secrets for local runs
+.env
+
+.claude/
