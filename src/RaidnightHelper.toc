@@ -1,9 +1,20 @@
 ## Interface: 120100, 120105
 ## Title: Raidnight Helper
-## Notes: Indsæt en gruppeopstilling (tekst eller RS1-kode) og sorter raidet automatisk.
+## Notes: Paste a group layout (text or RS1 code) and sort the raid automatically.
+## Notes-deDE: Füge eine Gruppenaufstellung ein (Text oder RS1-Code) und sortiere den Schlachtzug automatisch.
+## Notes-esES: Pega una composición de grupos (texto o código RS1) y ordena la banda automáticamente.
+## Notes-esMX: Pega una composición de grupos (texto o código RS1) y ordena la banda automáticamente.
+## Notes-frFR: Collez une composition de groupes (texte ou code RS1) et triez le raid automatiquement.
+## Notes-itIT: Incolla una formazione dei gruppi (testo o codice RS1) e ordina l'incursione automaticamente.
+## Notes-koKR: 파티 편성(텍스트 또는 RS1 코드)을 붙여넣으면 공격대를 자동으로 정렬합니다.
+## Notes-ptBR: Cole uma formação de grupos (texto ou código RS1) e ordene a raide automaticamente.
+## Notes-ruRU: Вставьте расстановку групп (текст или код RS1), и рейд отсортируется автоматически.
+## Notes-zhCN: 粘贴分组（文本或 RS1 代码），自动排列团队。
+## Notes-zhTW: 貼上分組（文字或 RS1 代碼），自動排列團隊。
 ## Author: Photic
 ## Version: 1.0.0
 ## SavedVariables: RaidSortDB
 ## IconTexture: Interface\Icons\INV_Misc_GroupNeedMore
 
+Locales.lua
 RaidSort.lua

@@ -1,40 +1,43 @@
 -- RaidSort
--- Indsæt en gruppeopstilling fra hjemmesiden og få raidet sorteret automatisk.
+-- Paste a group layout from the website and the raid sorts itself automatically.
 --
--- Input kan være almindelig tekst eller samme tekst base64-kodet med præfikset
--- "RS1:" (UTF-8). Tekstformatet er:
+-- Input can be plain text or the same text base64-encoded with the prefix
+-- "RS1:" (UTF-8). The text format is:
 --
 --   Group 1: Adelie, Goatjugs, Hoolyhayat, Kitchlol, Meilian
 --   Group 2: Gothmog, Hadier, Májestíc, Pepì, Sectorclear
 --   ...
 --
--- Navne kan også stå én pr. linje under en "Group N"-linje, og "Gruppe", "G1",
--- "1." osv. virker også. Navne kan skrives med realm: "Navn-Realm".
+-- Names can also go one per line under a "Group N" line, and "Gruppe", "G1",
+-- "1." etc. work too. Names can include the realm: "Name-Realm".
 --
--- Kommandoer:
---   /raidsort          åbn/luk vinduet
---   /raidsort apply    sorter efter den sidst indsatte opstilling (god til en makro)
---   /raidsort invite   inviter dem på listen, der ikke er i raidet
---   /raidsort stop     stop en igangværende sortering
+-- Commands:
+--   /raidsort          open/close the window
+--   /raidsort apply    sort by the last pasted layout (handy in a macro)
+--   /raidsort invite   invite players on the list who are not in the raid
+--   /raidsort stop     stop a sort in progress
+--
+-- Player-facing text goes through L (see Locales.lua).
 
 local ADDON_NAME, ns = ...
 ns = ns or {}
+local L = ns.L
 
 local MAX_GROUPS   = 8
 local GROUP_SIZE   = 5
 local PREFIX       = "RS1:"
-local STEP_TIMEOUT = 1.0   -- sek. mellem tjek af om en flytning er sket
-local MAX_WAITS    = 5     -- tjek uden ændring før en flytning regnes som afvist
-local MAX_FAILURES = 3     -- afviste flytninger i træk → giv op
-local STEP_DELAY   = 0.1   -- lille pause efter en roster-opdatering før næste flytning
-local MAX_STEPS    = 150   -- nødbremse
+local STEP_TIMEOUT = 1.0   -- seconds between checks for whether a move has landed
+local MAX_WAITS    = 5     -- checks without change before a move counts as rejected
+local MAX_FAILURES = 3     -- rejected moves in a row → give up
+local STEP_DELAY   = 0.1   -- short pause after a roster update before the next move
+local MAX_STEPS    = 150   -- safety stop
 
 local DEFAULTS = { text = "", moveExtras = true }
 local DB
 
 local function GetDB() return DB or DEFAULTS end
 
--- Midnight kan returnere "secret values" for nogle unit-data; dem rører vi ikke.
+-- Midnight can return "secret values" for some unit data; we leave those alone.
 local issecret = issecretvalue or function() return false end
 
 local function Print(msg)
@@ -57,7 +60,7 @@ do
   B64_INDEX[("_"):byte()] = 63
 end
 
--- Returnerer den afkodede streng, eller nil hvis input ikke er gyldig base64.
+-- Returns the decoded string, or nil if the input is not valid base64.
 function ns.DecodeBase64(s)
   s = s:gsub("%s", "")
   s = s:gsub("=+$", "")
@@ -77,11 +80,11 @@ function ns.DecodeBase64(s)
 end
 
 ---------------------------------------------------------------------------
--- Navne
+-- Names
 ---------------------------------------------------------------------------
 
--- Fold af accenter (U+00C0-U+00FF) til ASCII, så "Majestic" kan matche "Májestíc"
--- hvis hjemmesiden har skrevet navnet uden accenter.
+-- Folds accents (U+00C0-U+00FF) to ASCII, so "Majestic" can match "Májestíc"
+-- when the website wrote the name without accents.
 local FOLD = {}
 do
   local map = "AAAAAAACEEEEIIIIDNOOOOOxOUUUUYTsaaaaaaaceeeeiiiidnooooo/ouuuuyty"
@@ -89,8 +92,8 @@ do
 end
 
 local function Fold(s)
-  s = s:gsub("\204[\128-\191]", "")  -- kombinerende accenter (U+0300-U+033F)
-  s = s:gsub("\205[\128-\175]", "")  -- kombinerende accenter (U+0340-U+036F)
+  s = s:gsub("\204[\128-\191]", "")  -- combining accents (U+0300-U+033F)
+  s = s:gsub("\205[\128-\175]", "")  -- combining accents (U+0340-U+036F)
   s = s:gsub("\195[\128-\191]", FOLD)
   return s:lower()
 end
@@ -122,8 +125,8 @@ end
 
 local function NormalizeText(text)
   text = text:gsub("\r\n?", "\n")
-  text = text:gsub("\194\160", " ")               -- hårdt mellemrum
-  text = text:gsub("\226\128[\139-\141]", "")     -- zero-width tegn
+  text = text:gsub("\194\160", " ")               -- non-breaking space
+  text = text:gsub("\226\128[\139-\141]", "")     -- zero-width characters
   text = text:gsub("\239\187\191", "")            -- BOM
   return text
 end
@@ -133,7 +136,7 @@ local function SplitNames(s, out)
     token = Trim(token)
     if token ~= "" then
       if token:find("-", 1, true) then
-        out[#out + 1] = token  -- "Navn-Realm": realm kan indeholde mellemrum
+        out[#out + 1] = token  -- "Name-Realm": the realm may contain spaces
       else
         for part in token:gmatch("%S+") do out[#out + 1] = part end
       end
@@ -145,7 +148,7 @@ local function AddEntry(plan, seen, group, name)
   local base, realm = SplitName(name)
   local key = base:lower() .. "-" .. (RealmKey(realm) or "")
   if seen[key] then
-    table.insert(plan.errors, ("%s står i både gruppe %d og %d."):format(name, seen[key], group))
+    table.insert(plan.errors, L["%s is in both group %d and %d."]:format(name, seen[key], group))
     return
   end
   seen[key] = group
@@ -172,7 +175,7 @@ function ns.ParseText(text)
         current = num
       else
         current = nil
-        table.insert(plan.errors, ("Ugyldigt gruppenummer %d (skal være 1-%d)."):format(num, MAX_GROUPS))
+        table.insert(plan.errors, L["Invalid group number %d (must be 1-%d)."]:format(num, MAX_GROUPS))
       end
       line = rest
     end
@@ -190,19 +193,19 @@ function ns.ParseText(text)
   for g = 1, MAX_GROUPS do
     local list = plan.groups[g]
     if list and #list > GROUP_SIZE then
-      table.insert(plan.errors, ("Gruppe %d har %d spillere (max %d)."):format(g, #list, GROUP_SIZE))
+      table.insert(plan.errors, L["Group %d has %d players (max %d)."]:format(g, #list, GROUP_SIZE))
     end
   end
   if ignored > 0 then
-    table.insert(plan.warnings, ("%d linje(r) uden gruppenummer blev ignoreret."):format(ignored))
+    table.insert(plan.warnings, L["%d line(s) without a group number were ignored."]:format(ignored))
   end
   if plan.count == 0 and #plan.errors == 0 then
-    table.insert(plan.errors, 'Fandt ingen grupper. Forventet format: "Group 1: Navn, Navn, ..."')
+    table.insert(plan.errors, L['No groups found. Expected format: "Group 1: Name, Name, ..."'])
   end
   return plan
 end
 
--- Tager imod enten "RS1:<base64>", ren base64 eller almindelig tekst.
+-- Accepts "RS1:<base64>", bare base64 or plain text.
 function ns.ParseInput(raw)
   local s = Trim(raw or "")
   if s == "" then
@@ -216,7 +219,7 @@ function ns.ParseInput(raw)
     if not decoded then
       local plan = NewPlan()
       plan.source = "base64"
-      table.insert(plan.errors, "Koden kunne ikke afkodes. Er den kopieret helt med?")
+      table.insert(plan.errors, L["The code could not be decoded. Was all of it copied?"])
       return plan
     end
     local plan = ns.ParseText(decoded)
@@ -241,7 +244,7 @@ function ns.ParseInput(raw)
 end
 
 ---------------------------------------------------------------------------
--- Raidet
+-- Raid
 ---------------------------------------------------------------------------
 
 local function ReadRoster()
@@ -290,7 +293,7 @@ local function Candidates(members, entry, field)
   return Pick(cands, entry)
 end
 
--- Kobler listen til raidets medlemmer. Sætter m.desired på dem, der er fundet.
+-- Matches the list to the raid members. Sets m.desired on those it finds.
 local function MatchPlan(plan, members)
   local res = { missing = {}, ambiguous = {}, matched = 0 }
   for _, e in ipairs(plan.entries) do
@@ -309,8 +312,8 @@ local function MatchPlan(plan, members)
   return res
 end
 
--- Finder næste flytning. Hver flytning sætter mindst én spiller på listen
--- endeligt på plads (dem der står rigtigt flyttes aldrig igen), så det slutter.
+-- Finds the next move. Each move puts at least one player on the list in
+-- their final group (players already in place are never moved again), so it ends.
 local function NextMove(plan, members, counts, moveExtras)
   for _, m in ipairs(members) do
     local target = m.desired
@@ -337,7 +340,7 @@ local function NextMove(plan, members, counts, moveExtras)
             return "set", m, g
           end
         end
-        break -- ingen ledig gruppe; resten bliver stående
+        break -- no free group; the rest stay put
       end
     end
   end
@@ -353,23 +356,23 @@ end
 
 local function AppendMissing(lines, res)
   if #res.missing > 0 then
-    lines[#lines + 1] = "|cffffd100Ikke i raidet:|r " .. table.concat(res.missing, ", ")
+    lines[#lines + 1] = "|cffffd100" .. L["Not in raid:"] .. "|r " .. table.concat(res.missing, ", ")
   end
   if #res.ambiguous > 0 then
-    lines[#lines + 1] = "|cffffd100Flere med samme navn (skriv Navn-Realm):|r " .. table.concat(res.ambiguous, ", ")
+    lines[#lines + 1] = "|cffffd100" .. L["Multiple players share this name (use Name-Realm):"] .. "|r " .. table.concat(res.ambiguous, ", ")
   end
 end
 
 local function CanArrange()
-  if not IsInRaid() then return false, "Du er ikke i et raid." end
+  if not IsInRaid() then return false, L["You are not in a raid."] end
   if not (UnitIsGroupLeader("player") or UnitIsGroupAssistant("player")) then
-    return false, "Du skal være raidleder eller assistent for at flytte spillere."
+    return false, L["You must be raid leader or assistant to move players."]
   end
   return true
 end
 
 ---------------------------------------------------------------------------
--- Status og preview
+-- Status and preview
 ---------------------------------------------------------------------------
 
 function ns.SetStatus(text)
@@ -384,7 +387,7 @@ function ns.IsRunning() return runner.active end
 function ns.BuildPreview(text)
   local plan = ns.ParseInput(text)
   if plan.empty then
-    return "Indsæt opstillingen fra hjemmesiden og tryk på Sortér raid."
+    return L["Paste the layout from the website and press Sort raid."]
   end
   if #plan.errors > 0 then
     return "|cffff5555" .. table.concat(plan.errors, "\n") .. "|r"
@@ -395,24 +398,24 @@ function ns.BuildPreview(text)
     if plan.used[g] then groups = groups + 1 end
   end
   local lines = {
-    ("%s: %d spillere i %d grupper."):format(plan.source == "base64" and "Kode" or "Tekst", plan.count, groups),
+    L["%s: %d players in %d groups."]:format(plan.source == "base64" and L["Code"] or L["Text"], plan.count, groups),
   }
 
   if not IsInRaid() then
-    lines[#lines + 1] = "Du er ikke i et raid."
+    lines[#lines + 1] = L["You are not in a raid."]
   elseif InCombatLockdown() then
-    lines[#lines + 1] = "I kamp – raidet tjekkes, når I er ude af kamp."
+    lines[#lines + 1] = L["In combat – the raid is checked once combat ends."]
   else
     local members, counts = ReadRoster()
     local res = MatchPlan(plan, members)
     if not NextMove(plan, members, counts, GetDB().moveExtras) then
-      lines[#lines + 1] = "|cff55ff55Raidet matcher opstillingen.|r"
+      lines[#lines + 1] = "|cff55ff55" .. L["The raid matches the layout."] .. "|r"
     else
       local wrong = CountWrong(members)
       if wrong > 0 then
-        lines[#lines + 1] = ("%d spiller(e) står i en forkert gruppe."):format(wrong)
+        lines[#lines + 1] = L["%d player(s) in the wrong group."]:format(wrong)
       else
-        lines[#lines + 1] = "Spillere uden for listen står i de planlagte grupper."
+        lines[#lines + 1] = L["Players not on the list are in the planned groups."]
       end
       local ok, err = CanArrange()
       if not ok then lines[#lines + 1] = "|cffff5555" .. err .. "|r" end
@@ -440,7 +443,7 @@ function ns.SchedulePreview()
 end
 
 ---------------------------------------------------------------------------
--- Sortering
+-- Sorting
 ---------------------------------------------------------------------------
 
 local function Stop(msg)
@@ -458,9 +461,9 @@ local function Summary(plan, res, members)
   local lines = {}
   local wrong = CountWrong(members)
   if wrong == 0 then
-    lines[1] = ("|cff55ff55Færdig!|r %d af %d spillere står i den rigtige gruppe."):format(res.matched, plan.count)
+    lines[1] = "|cff55ff55" .. L["Done!"] .. "|r " .. L["%d of %d players are in the right group."]:format(res.matched, plan.count)
   else
-    lines[1] = ("|cffff5555%d spiller(e) kunne ikke flyttes.|r"):format(wrong)
+    lines[1] = "|cffff5555" .. L["%d player(s) could not be moved."]:format(wrong) .. "|r"
   end
   AppendMissing(lines, res)
   return table.concat(lines, "\n")
@@ -474,8 +477,8 @@ local function ArmTimeout()
   end)
 end
 
--- Er den sidst sendte flytning slået igennem? (Spilleren står ikke længere
--- i den gruppe, de stod i, da vi sendte den – eller har forladt raidet.)
+-- Has the last move landed? (The player is no longer in the group they were
+-- in when we sent it – or has left the raid.)
 local function MoveLanded(p)
   for i = 1, GetNumGroupMembers() or 0 do
     local name, _, subgroup = GetRaidRosterInfo(i)
@@ -486,8 +489,8 @@ local function MoveLanded(p)
   return true
 end
 
--- Ét skridt: vent til forrige flytning er slået igennem, find så den næste.
--- Der er aldrig mere end én flytning undervejs ad gangen.
+-- One step: wait for the previous move to land, then find the next one.
+-- There is never more than one move in flight at a time.
 function ns.Step(fromTimeout)
   if not runner.active then return end
 
@@ -497,13 +500,13 @@ function ns.Step(fromTimeout)
   if InCombatLockdown() then
     if not runner.waitingCombat then
       runner.waitingCombat = true
-      ns.SetStatus("I kamp – sorteringen fortsætter, når I er ude af kamp.")
+      ns.SetStatus(L["In combat – sorting continues once combat ends."])
     end
     return
   end
   if runner.waitingCombat then
     runner.waitingCombat = false
-    ns.SetStatus("Sorterer raidet …")
+    ns.SetStatus(L["Sorting raid …"])
   end
 
   local p = runner.pending
@@ -517,10 +520,10 @@ function ns.Step(fromTimeout)
       runner.pending = nil
       runner.failures = runner.failures + 1
       if runner.failures >= MAX_FAILURES then
-        return Stop(("|cffff5555Kunne ikke flytte %s – spillet afviste flytningen.|r"):format(p.name))
+        return Stop("|cffff5555" .. L["Could not move %s – the game rejected the move."]:format(p.name) .. "|r")
       end
     else
-      return ArmTimeout() -- andre ændringer i raidet; bliv ved med at vente
+      return ArmTimeout() -- other raid changes; keep waiting
     end
   end
 
@@ -531,7 +534,7 @@ function ns.Step(fromTimeout)
 
   runner.steps = runner.steps + 1
   if runner.steps > MAX_STEPS then
-    return Stop("|cffff5555Stoppede efter for mange flytninger – tjek raidet manuelt.|r")
+    return Stop("|cffff5555" .. L["Stopped after too many moves – check the raid manually."] .. "|r")
   end
 
   if op == "set" then
@@ -548,8 +551,8 @@ function ns.Apply(text)
 
   local plan = ns.ParseInput(text)
   if plan.empty then
-    ns.SetStatus("Indsæt en opstilling først.")
-    Print("Ingen opstilling – indsæt den i /raidsort først.")
+    ns.SetStatus(L["Paste a layout first."])
+    Print(L["No layout – paste one in /raidsort first."])
     return false
   end
   if #plan.errors > 0 then
@@ -569,46 +572,47 @@ function ns.Apply(text)
   runner.moveExtras = GetDB().moveExtras
   runner.steps, runner.failures, runner.pending = 0, 0, nil
   runner.waitingCombat = false
-  ns.SetStatus("Sorterer raidet …")
+  ns.SetStatus(L["Sorting raid …"])
   ns.Step()
   return true
 end
 
 function ns.StopSorting()
-  if runner.active then Stop("Sortering stoppet.") end
+  if runner.active then Stop(L["Sorting stopped."]) end
 end
 
 function ns.InviteMissing(text)
   local plan = ns.ParseInput(text)
   if plan.empty or #plan.errors > 0 then
-    Print("Indsæt en gyldig opstilling først.")
+    Print(L["Paste a valid layout first."])
     return
   end
   if not IsInRaid() then
-    Print("Lav gruppen om til et raid, før du inviterer.")
+    Print(L["Convert the group to a raid before inviting."])
     return
   end
   local members = ReadRoster()
   local res = MatchPlan(plan, members)
   if #res.missing == 0 then
-    Print("Alle på listen er allerede i raidet.")
+    Print(L["Everyone on the list is already in the raid."])
     return
   end
   local invite = (C_PartyInfo and C_PartyInfo.InviteUnit) or InviteUnit
   for i, name in ipairs(res.missing) do
     C_Timer.After((i - 1) * 0.2, function() invite(name) end)
   end
-  Print(("Inviterer %d: %s"):format(#res.missing, table.concat(res.missing, ", ")))
+  Print(L["Inviting %d: %s"]:format(#res.missing, table.concat(res.missing, ", ")))
 end
 
 ---------------------------------------------------------------------------
--- Vindue
+-- Window
 ---------------------------------------------------------------------------
 
 local function MakeButton(parent, text, width)
   local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
   b:SetSize(width, 24)
   b:SetText(text)
+  b:SetWidth(math.max(width, b:GetTextWidth() + 24)) -- room for longer translations
   return b
 end
 
@@ -626,7 +630,7 @@ function ns.CreateUI()
   f:SetScript("OnDragStart", f.StartMoving)
   f:SetScript("OnDragStop", f.StopMovingOrSizing)
   f:Hide()
-  table.insert(UISpecialFrames, "RaidSortFrame") -- Esc lukker vinduet
+  table.insert(UISpecialFrames, "RaidSortFrame") -- Esc closes the window
 
   local title = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   title:SetPoint("TOP", 0, -5)
@@ -634,7 +638,7 @@ function ns.CreateUI()
 
   local hint = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   hint:SetPoint("TOPLEFT", 16, -32)
-  hint:SetText("Indsæt opstillingen fra hjemmesiden (Ctrl+V):")
+  hint:SetText(L["Paste the layout from the website (Ctrl+V):"])
 
   local sf = CreateFrame("ScrollFrame", "RaidSortScrollFrame", f, "UIPanelScrollFrameTemplate")
   sf:SetPoint("TOPLEFT", 16, -50)
@@ -673,7 +677,7 @@ function ns.CreateUI()
   end)
   local cbLabel = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   cbLabel:SetPoint("LEFT", cb, "RIGHT", 2, 0)
-  cbLabel:SetText("Flyt spillere, der ikke er på listen, til de ledige grupper")
+  cbLabel:SetText(L["Move players who are not on the list to the free groups"])
 
   local status = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   status:SetPoint("TOPLEFT", cb, "BOTTOMLEFT", 6, -4)
@@ -682,18 +686,18 @@ function ns.CreateUI()
   status:SetJustifyH("LEFT")
   status:SetJustifyV("TOP")
 
-  local apply = MakeButton(f, "Sortér raid", 120)
+  local apply = MakeButton(f, L["Sort raid"], 120)
   apply:SetPoint("BOTTOMRIGHT", -12, 12)
   apply:SetScript("OnClick", function()
     eb:ClearFocus()
     ns.Apply(eb:GetText())
   end)
 
-  local invite = MakeButton(f, "Inviter manglende", 140)
+  local invite = MakeButton(f, L["Invite missing"], 140)
   invite:SetPoint("RIGHT", apply, "LEFT", -6, 0)
   invite:SetScript("OnClick", function() ns.InviteMissing(eb:GetText()) end)
 
-  local clear = MakeButton(f, "Ryd", 70)
+  local clear = MakeButton(f, L["Clear"], 70)
   clear:SetPoint("BOTTOMLEFT", 12, 12)
   clear:SetScript("OnClick", function()
     eb:SetText("")
@@ -716,7 +720,7 @@ function ns.Toggle()
 end
 
 ---------------------------------------------------------------------------
--- Events og kommandoer
+-- Events and commands
 ---------------------------------------------------------------------------
 
 function ns.OnEvent(event, arg1)
