@@ -1,14 +1,17 @@
 -- BossLayouts
 -- A row of boss icons at the top of the RaidSort window. Each boss keeps one
 -- layout: Save stores the text box under the selected boss, and clicking a
--- boss loads its layout back into the text box. With auto-save on, a pull
--- stores the raid's actual groups under that boss.
+-- boss loads its layout back into the text box. A pull selects that boss, and
+-- with auto-save on, it also stores the raid's actual groups under it.
 --
 -- Bosses come from the Encounter Journal, so the row follows the current tier
 -- without hardcoded names. Layouts are keyed by journal encounter ID, which is
 -- the same in every client language, and live in RaidSortDB.bosses:
 --
 --   [journalEncounterID] = { text = "Group 1: ...", saved = <time()>, pull = true|nil }
+--
+-- RaidSortDB.lastBoss = { raid = journalInstanceID, boss = journalEncounterID }
+-- remembers the boss pulled last, so it is selected again after a reload.
 
 local _, ns = ...
 local L = ns.L
@@ -170,15 +173,29 @@ local function SelectRaid(id)
   bar.dropdown:GenerateMenu()
 end
 
--- Shows the raid the player is in, else the raid shown last, else the first.
+local function HasRaid(id)
+  for _, raid in ipairs(bar.raids) do
+    if raid.id == id then return true end
+  end
+  return false
+end
+
+-- Shows the raid the player is in, else the raid shown last, else the raid of
+-- the boss pulled last, else the first. The boss pulled last is selected
+-- after a new pull, or when no boss is selected yet.
 local function Refresh()
   if #bar.raids == 0 then bar.raids = LoadRaids() end
-  local here, target = CurrentInstance(), bar.raid
-  for _, raid in ipairs(bar.raids) do
-    if raid.id == here then target = here end
+  local last = ns.GetDB().lastBoss
+  local here = CurrentInstance()
+  local target = (HasRaid(here) and here) or bar.raid
+    or (last and HasRaid(last.raid) and last.raid) or (bar.raids[1] and bar.raids[1].id)
+  if not target then return UpdateButtons() end
+  SelectRaid(target)
+  if last and last.raid == target and (bar.pulled or not bar.selected) then
+    bar.selected = last.boss
+    UpdateButtons()
   end
-  target = target or (bar.raids[1] and bar.raids[1].id)
-  if target then SelectRaid(target) else UpdateButtons() end
+  bar.pulled = false
 end
 
 local function SaveSelected()
@@ -285,24 +302,33 @@ function ns.ReadGroups()
   if text ~= "" then return text end
 end
 
--- The current tier's boss for an ENCOUNTER_START encounter ID.
+-- The current tier's boss, and its raid, for an ENCOUNTER_START encounter ID.
 local function BossForEncounter(encounterID)
   if #bar.raids == 0 then bar.raids = LoadRaids() end
   for _, raid in ipairs(bar.raids) do
     for _, boss in ipairs(LoadBosses(raid.id)) do
-      if boss.encounter == encounterID then return boss end
+      if boss.encounter == encounterID then return boss, raid end
     end
   end
 end
 
--- Groups can't change in combat, so the last out-of-combat read stands in
--- when the roster is secret at the pull.
+-- The boss pulled last becomes the selected one, now if the window is open,
+-- else when it opens. With auto-save on, the pull also stores the raid's
+-- groups under that boss. Groups can't change in combat, so the last
+-- out-of-combat read stands in when the roster is secret at the pull.
 local function OnEncounterStart(encounterID)
-  if not ns.GetDB().autoSave or not IsInRaid() or issecret(encounterID) then return end
+  if not IsInRaid() or issecret(encounterID) then return end
+  local boss, raid = BossForEncounter(encounterID)
+  if not boss then return end
+
+  ns.GetDB().lastBoss = { raid = raid.id, boss = boss.id }
+  bar.pulled = true
+  if bar.row and bar.row:IsVisible() then Refresh() end
+
+  if not ns.GetDB().autoSave then return end
   if IsInGroup(LE_PARTY_CATEGORY_INSTANCE) then return end -- Raid Finder groups are random
   local text = ns.ReadGroups() or lastGroups
-  local boss = BossForEncounter(encounterID)
-  if not text or not boss then return end
+  if not text then return end
   Layouts()[boss.id] = { text = text, saved = time(), pull = true }
   if bar.row then UpdateButtons() end
   ns.Print(L["Saved the raid's groups for %s."]:format(boss.name))

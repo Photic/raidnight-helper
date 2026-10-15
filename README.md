@@ -36,6 +36,7 @@ Tanks and healers come from the raid role. Melee or ranged comes from the class,
 A row of boss icons at the top of the window shows the bosses of the current raid tier, read from the Encounter Journal. Pick the raid in the dropdown; it starts on the raid you are in.
 
 - Click a boss to load its saved layout into the text box.
+- The boss you pulled last is selected automatically, also after a `/reload`. Click another boss to choose it instead.
 - **Save** stores the text box under the selected boss. **Delete** removes it.
 - Faded icons have nothing saved yet. Hover an icon to see when its layout was saved.
 - With **Save the raid's groups to the boss on pull** checked (the default), every pull stores the raid's groups as they are under that boss, so the next click on it brings back the groups from the last pull. Raid Finder pulls are skipped.
