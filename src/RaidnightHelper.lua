@@ -309,8 +309,10 @@ local function Candidates(members, entry, field)
 end
 
 -- Matches the list to the raid members. Sets m.desired on those it finds.
+-- res.missing has the names on the list that are not in the raid, and
+-- res.missingEntries their entries.
 local function MatchPlan(plan, members)
-  local res = { missing = {}, ambiguous = {}, matched = 0 }
+  local res = { missing = {}, missingEntries = {}, ambiguous = {}, matched = 0 }
   for _, e in ipairs(plan.entries) do
     local cands = Candidates(members, e, "base")
     if #cands == 0 then cands = Candidates(members, e, "fold") end
@@ -320,6 +322,7 @@ local function MatchPlan(plan, members)
       res.matched = res.matched + 1
     elseif #cands == 0 then
       table.insert(res.missing, e.name)
+      table.insert(res.missingEntries, e)
     else
       table.insert(res.ambiguous, e.name)
     end
@@ -327,13 +330,36 @@ local function MatchPlan(plan, members)
   return res
 end
 
+-- Adds the players on the list who are not in the raid to groups
+-- ({ [group] = { names } }): each to their own group, or when that is full,
+-- to the first group with room.
+local function AddMissing(groups, res)
+  local function Room(g) return #(groups[g] or {}) < GROUP_SIZE end
+  local function Put(g, name)
+    groups[g] = groups[g] or {}
+    table.insert(groups[g], name)
+  end
+  local displaced = {}
+  for _, e in ipairs(res.missingEntries) do
+    if Room(e.group) then Put(e.group, e.name) else displaced[#displaced + 1] = e.name end
+  end
+  for _, name in ipairs(displaced) do
+    for g = 1, MAX_GROUPS do
+      if Room(g) then Put(g, name) break end
+    end
+  end
+end
+
 -- Gives players who are not on the list a group in the open slots of groups
 -- 1-4, by role (see AutoGroups.lua). Players on the list keep their groups,
--- and slots of list players who are not in the raid count as open. Among
+-- and slots of list players who are not in the raid are held for them. Among
 -- players of the same role, those already in groups 1-4 get a slot first;
 -- anyone without a slot is left for the free groups. Returns { [name] = group }.
-local function PlaceExtras(members)
+local function PlaceExtras(members, res)
   local fixed, extras, far = {}, {}, {}
+  for _, e in ipairs(res.missingEntries) do
+    if e.group <= ns.AUTO_GROUPS then fixed[#fixed + 1] = { group = e.group } end
+  end
   for _, m in ipairs(members) do
     local role = ns.UnitRole("raid" .. m.index)
     if m.desired then
@@ -454,7 +480,7 @@ function ns.BuildPreview(text)
     local members, counts = ReadRoster()
     local res = MatchPlan(plan, members)
     local moveExtras = GetDB().moveExtras
-    if moveExtras then ApplyTargets(members, PlaceExtras(members)) end
+    if moveExtras then ApplyTargets(members, PlaceExtras(members, res)) end
     if not NextMove(plan, members, counts, moveExtras) then
       lines[#lines + 1] = "|cff55ff55" .. L["The raid matches the layout."] .. "|r"
     else
@@ -524,10 +550,13 @@ end
 
 -- After Auto, or when players who are not on the list got a group, the text
 -- box takes the raid as it now is, and with auto-save on, the selected boss
--- keeps it.
-local function KeepResult()
-  local text = ns.ReadGroups()
-  if not text then return end
+-- keeps it. Players on the list who are not in the raid stay on it.
+local function KeepResult(res)
+  local groups = ns.RaidGroups()
+  if not groups then return end
+  AddMissing(groups, res)
+  local text = ns.FormatLayout(groups)
+  if text == "" then return end
   SetLayoutText(text)
   if GetDB().autoSave then ns.SaveToSelectedBoss(text) end
 end
@@ -595,7 +624,7 @@ function ns.Step(fromTimeout)
   if runner.targets then ApplyTargets(members, runner.targets) end
   local op, a, b = NextMove(runner.plan, members, counts, runner.moveExtras)
   if not op then
-    if (runner.auto or runner.placed) and CountWrong(members) == 0 then KeepResult() end
+    if (runner.auto or runner.placed) and CountWrong(members) == 0 then KeepResult(res) end
     return Stop(Summary(runner.plan, res, members))
   end
 
@@ -650,8 +679,8 @@ function ns.Apply(text, auto)
     runner.checking = false
     if runner.moveExtras then
       local members = ReadRoster()
-      MatchPlan(plan, members)
-      runner.targets = PlaceExtras(members)
+      local res = MatchPlan(plan, members)
+      runner.targets = PlaceExtras(members, res)
       runner.placed = next(runner.targets) ~= nil
     end
     ns.SetStatus(L["Sorting raid …"])
@@ -678,7 +707,10 @@ function ns.Auto()
     return
   end
   ns.CheckSpecs(function()
-    local text, guessed = ns.AutoLayout()
+    local groups, guessed = ns.AutoLayout()
+    -- Players on the list who are not in the raid stay on it.
+    AddMissing(groups, MatchPlan(ns.ParseInput(GetDB().text), ReadRoster()))
+    local text = ns.FormatLayout(groups)
     SetLayoutText(text)
     if #guessed > 0 then
       Print(L["Spec guessed from class: %s"]:format(table.concat(guessed, ", ")))

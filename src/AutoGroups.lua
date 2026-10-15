@@ -22,9 +22,11 @@ ns.AUTO_GROUPS = AUTO_GROUPS
 local issecret = issecretvalue or function() return false end
 
 -- Gives each player ({ role = r }) a .target in groups 1-4, around the fixed
--- players already there ({ group = g, role = r }). When there are more players
--- than free slots, the order below decides who gets one; players earlier in
--- the list go first within the same role. Players who don't fit get no target.
+-- players already there ({ group = g, role = r }). A fixed player without a
+-- role holds the slot for someone who is not in the raid. When there are more
+-- players than free slots, the order below decides who gets one; players
+-- earlier in the list go first within the same role. Players who don't fit
+-- get no target.
 function ns.BalanceGroups(fixed, players)
   local size, inGroup, inHalf = {}, {}, { {}, {} }
   for g = 1, AUTO_GROUPS do size[g], inGroup[g] = 0, {} end
@@ -36,7 +38,9 @@ function ns.BalanceGroups(fixed, players)
     inGroup[g][role] = (inGroup[g][role] or 0) + 1
     inHalf[HALF[g]][role] = Count(HALF[g], role) + 1
   end
-  for _, p in ipairs(fixed) do Add(p.group, p.role) end
+  for _, p in ipairs(fixed) do
+    if p.role then Add(p.group, p.role) else size[p.group] = size[p.group] + 1 end
+  end
 
   local tried = {}
   local function Place(p)
@@ -92,8 +96,9 @@ function ns.BalanceGroups(fixed, players)
   end
 end
 
--- A layout for the whole raid: groups 1-4 balanced, groups 5-8 as they are.
--- Also returns the names whose role was guessed from the class.
+-- A layout for the whole raid as { [group] = { names } }: groups 1-4
+-- balanced, groups 5-8 as they are. Also returns the names whose role was
+-- guessed from the class.
 function ns.AutoLayout()
   local players, groups, guessed = {}, {}, {}
   for i = 1, GetNumGroupMembers() or 0 do
@@ -115,5 +120,5 @@ function ns.AutoLayout()
     groups[p.target] = groups[p.target] or {}
     table.insert(groups[p.target], p.name)
   end
-  return ns.FormatLayout(groups), guessed
+  return groups, guessed
 end

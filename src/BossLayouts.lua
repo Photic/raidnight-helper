@@ -289,8 +289,9 @@ end
 
 local lastGroups -- the raid's groups from the last time the roster could be read
 
--- The raid's groups as layout text, or nil if any of the roster can't be read.
-function ns.ReadGroups()
+-- The raid's groups as { [group] = { names } }, or nil if any of the roster
+-- can't be read.
+function ns.RaidGroups()
   local groups = {}
   for i = 1, GetNumGroupMembers() or 0 do
     local name, _, subgroup = GetRaidRosterInfo(i)
@@ -298,6 +299,13 @@ function ns.ReadGroups()
     groups[subgroup] = groups[subgroup] or {}
     table.insert(groups[subgroup], name)
   end
+  return groups
+end
+
+-- The raid's groups as layout text, or nil if any of the roster can't be read.
+function ns.ReadGroups()
+  local groups = ns.RaidGroups()
+  if not groups then return end
   local text = ns.FormatLayout(groups)
   if text ~= "" then return text end
 end

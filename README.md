@@ -13,14 +13,14 @@ Paste a group layout from the website and the raid sorts itself into the planned
 - Accepts plain text or the website's `RS1:` code.
 - A live preview shows how many players are in the wrong group, who on the list is not in the raid, and which names match more than one player.
 - **Sort raid** moves players one at a time and waits for each move to land before the next. Sorting pauses in combat and continues when combat ends.
-- **Fill open slots with players not on the list** (on by default): players on the list keep their groups, and players who are not on it take the open slots in groups 1–4 by role, with the same rules as Auto. Slots of list players who are not in the raid count as open; anyone left over goes to the free groups. Afterwards the text box shows the raid as it now is, and with auto-save on, the selected boss keeps it.
+- **Fill open slots with players not on the list** (on by default): players on the list keep their groups, and players who are not on it take the open slots in groups 1–4 by role, with the same rules as Auto. Slots of list players who are not in the raid stay free for them; anyone left over goes to the free groups. Afterwards the text box shows the raid as it now is, with the players who are not in the raid still on the list, and with auto-save on, the selected boss keeps it.
 - **Invite missing** invites everyone on the list who is not in the raid yet.
 - Names match regardless of case and accents, so `Majestic` finds `Májestíc`. Write `Name-Realm` when two players share a name.
 - Requires raid leader or assistant to move players.
 
 #### Auto
 
-**Auto** (or `/raidnight auto`) balances groups 1–4 by role. Groups 1+2 and 3+4 are two halves, and each half gets the same share of tanks, healers, melee and ranged, as close as the raid allows. Groups 5–8 are left alone, so a bench stays a bench. The result goes into the text box and the raid is sorted by it; with auto-save on, the selected boss keeps it.
+**Auto** (or `/raidnight auto`) balances groups 1–4 by role. Groups 1+2 and 3+4 are two halves, and each half gets the same share of tanks, healers, melee and ranged, as close as the raid allows. Groups 5–8 are left alone, so a bench stays a bench. The result goes into the text box and the raid is sorted by it; with auto-save on, the selected boss keeps it. Players on the list who are not in the raid stay on it: in their own group if Auto left room there, otherwise in the first group with room.
 
 ```
 20 players: 2 tanks, 4 healers, 7 melee, 7 ranged
