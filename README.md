@@ -6,7 +6,7 @@ The in-game interface follows the language of the game client: English, German, 
 
 ## Features
 
-### RaidSort
+### Group sorting
 Paste a group layout from the website and the raid sorts itself into the planned groups.
 
 - Open the window with `/raidnight` (or `/rn`) and paste the layout with Ctrl+V.

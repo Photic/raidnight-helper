@@ -1,5 +1,6 @@
--- RaidSort
--- Paste a group layout from the website and the raid sorts itself automatically.
+-- Raidnight Helper
+-- The window, group sorting and the slash commands. Paste a group layout
+-- from the website and the raid sorts itself automatically.
 --
 -- Input can be plain text or the same text base64-encoded with the prefix
 -- "RS1:" (UTF-8). The text format is:
@@ -43,7 +44,7 @@ ns.GetDB = GetDB
 local issecret = issecretvalue or function() return false end
 
 local function Print(msg)
-  print("|cff33ff99RaidSort|r: " .. msg)
+  print("|cff33ff99Raidnight Helper|r: " .. msg)
 end
 ns.Print = Print
 
@@ -725,7 +726,7 @@ ns.MakeButton = MakeButton
 function ns.CreateUI()
   if ns.frame then return ns.frame end
 
-  local f = CreateFrame("Frame", "RaidSortFrame", UIParent, "BasicFrameTemplateWithInset")
+  local f = CreateFrame("Frame", "RaidnightHelperFrame", UIParent, "BasicFrameTemplateWithInset")
   f:SetSize(480, 474)
   f:SetPoint("CENTER")
   f:SetFrameStrata("DIALOG")
@@ -736,17 +737,17 @@ function ns.CreateUI()
   f:SetScript("OnDragStart", f.StartMoving)
   f:SetScript("OnDragStop", f.StopMovingOrSizing)
   f:Hide()
-  table.insert(UISpecialFrames, "RaidSortFrame") -- Esc closes the window
+  table.insert(UISpecialFrames, "RaidnightHelperFrame") -- Esc closes the window
 
   local title = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   title:SetPoint("TOP", 0, -5)
-  title:SetText("RaidSort")
+  title:SetText("Raidnight Helper")
 
   local hint = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   hint:SetPoint("TOPLEFT", 16, -126)
   hint:SetText(L["Paste the layout from the website (Ctrl+V):"])
 
-  local sf = CreateFrame("ScrollFrame", "RaidSortScrollFrame", f, "UIPanelScrollFrameTemplate")
+  local sf = CreateFrame("ScrollFrame", "RaidnightHelperScrollFrame", f, "UIPanelScrollFrameTemplate")
   sf:SetPoint("TOPLEFT", 16, -144)
   sf:SetPoint("BOTTOMRIGHT", -36, 118)
 
@@ -755,7 +756,7 @@ function ns.CreateUI()
   bg:SetPoint("TOPLEFT", sf, "TOPLEFT", -4, 4)
   bg:SetPoint("BOTTOMRIGHT", sf, "BOTTOMRIGHT", 4, -4)
 
-  local eb = CreateFrame("EditBox", "RaidSortEditBox", sf)
+  local eb = CreateFrame("EditBox", "RaidnightHelperEditBox", sf)
   eb:SetMultiLine(true)
   eb:SetAutoFocus(false)
   eb:SetMaxLetters(0)
@@ -773,7 +774,7 @@ function ns.CreateUI()
   sf:EnableMouse(true)
   sf:SetScript("OnMouseDown", function() eb:SetFocus() end)
 
-  local cb = CreateFrame("CheckButton", "RaidSortExtrasCheck", f, "UICheckButtonTemplate")
+  local cb = CreateFrame("CheckButton", "RaidnightHelperExtrasCheck", f, "UICheckButtonTemplate")
   cb:SetSize(24, 24)
   cb:SetPoint("TOPLEFT", sf, "BOTTOMLEFT", -6, -8)
   cb:SetChecked(GetDB().moveExtras)
@@ -840,11 +841,11 @@ end
 function ns.OnEvent(event, arg1)
   if event == "ADDON_LOADED" then
     if arg1 == ADDON_NAME then
-      RaidSortDB = RaidSortDB or {}
+      RaidnightHelperDB = RaidnightHelperDB or {}
       for k, v in pairs(DEFAULTS) do
-        if RaidSortDB[k] == nil then RaidSortDB[k] = v end
+        if RaidnightHelperDB[k] == nil then RaidnightHelperDB[k] = v end
       end
-      DB = RaidSortDB
+      DB = RaidnightHelperDB
     end
   elseif event == "GROUP_ROSTER_UPDATE" then
     if runner.active then

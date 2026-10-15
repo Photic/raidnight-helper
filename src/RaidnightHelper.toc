@@ -13,11 +13,11 @@
 ## Notes-zhTW: 貼上分組（文字或 RS1 代碼），自動排列團隊。
 ## Author: Photic
 ## Version: 1.0.0
-## SavedVariables: RaidSortDB
+## SavedVariables: RaidnightHelperDB
 ## IconTexture: Interface\Icons\INV_Misc_GroupNeedMore
 
 Locales.lua
 Roles.lua
 AutoGroups.lua
-RaidSort.lua
+RaidnightHelper.lua
 BossLayouts.lua

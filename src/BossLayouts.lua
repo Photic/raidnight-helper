@@ -1,16 +1,16 @@
 -- BossLayouts
--- A row of boss icons at the top of the RaidSort window. Each boss keeps one
+-- A row of boss icons at the top of the Raidnight Helper window. Each boss keeps one
 -- layout: Save stores the text box under the selected boss, and clicking a
 -- boss loads its layout back into the text box. A pull selects that boss, and
 -- with auto-save on, it also stores the raid's actual groups under it.
 --
 -- Bosses come from the Encounter Journal, so the row follows the current tier
 -- without hardcoded names. Layouts are keyed by journal encounter ID, which is
--- the same in every client language, and live in RaidSortDB.bosses:
+-- the same in every client language, and live in RaidnightHelperDB.bosses:
 --
 --   [journalEncounterID] = { text = "Group 1: ...", saved = <time()>, pull = true|nil }
 --
--- RaidSortDB.lastBoss = { raid = journalInstanceID, boss = journalEncounterID }
+-- RaidnightHelperDB.lastBoss = { raid = journalInstanceID, boss = journalEncounterID }
 -- remembers the boss pulled last, so it is selected again after a reload.
 
 local _, ns = ...
@@ -224,7 +224,7 @@ function ns.SaveToSelectedBoss(text)
   return true
 end
 
-StaticPopupDialogs.RAIDSORT_DELETE_LAYOUT = {
+StaticPopupDialogs.RAIDNIGHT_DELETE_LAYOUT = {
   text = L["Delete the saved layout for %s?"],
   button1 = YES,
   button2 = NO,
@@ -240,7 +240,7 @@ StaticPopupDialogs.RAIDSORT_DELETE_LAYOUT = {
 
 local function DeleteSelected()
   local boss = SelectedBoss()
-  if boss then StaticPopup_Show("RAIDSORT_DELETE_LAYOUT", boss.name, nil, boss) end
+  if boss then StaticPopup_Show("RAIDNIGHT_DELETE_LAYOUT", boss.name, nil, boss) end
 end
 
 function ns.CreateBossBar(f, editBox)
