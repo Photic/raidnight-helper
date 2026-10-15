@@ -64,6 +64,9 @@ if locale == "deDE" then
   L["Checking specs … (%d/%d)"] = "Prüfe Spezialisierungen … (%d/%d)"
   L["Spec guessed from class: %s"] = "Spezialisierung nach Klasse geschätzt: %s"
   L["Auto can't run in combat."] = "Auto funktioniert nicht im Kampf."
+  L["Group %d"] = "Gruppe %d"
+  L["Not on list"] = "Nicht auf der Liste"
+  L["+%d more"] = "+%d weitere"
 
 elseif locale == "esES" or locale == "esMX" then
   L["%s is in both group %d and %d."] = "%s está en el grupo %d y en el grupo %d."
@@ -117,6 +120,9 @@ elseif locale == "esES" or locale == "esMX" then
   L["Checking specs … (%d/%d)"] = "Comprobando especializaciones … (%d/%d)"
   L["Spec guessed from class: %s"] = "Especialización estimada por clase: %s"
   L["Auto can't run in combat."] = "Auto no funciona en combate."
+  L["Group %d"] = "Grupo %d"
+  L["Not on list"] = "Fuera de la lista"
+  L["+%d more"] = "+%d más"
 
 elseif locale == "frFR" then
   L["%s is in both group %d and %d."] = "%s est à la fois dans le groupe %d et le groupe %d."
@@ -170,6 +176,9 @@ elseif locale == "frFR" then
   L["Checking specs … (%d/%d)"] = "Vérification des spécialisations … (%d/%d)"
   L["Spec guessed from class: %s"] = "Spécialisation devinée d'après la classe : %s"
   L["Auto can't run in combat."] = "Auto ne fonctionne pas en combat."
+  L["Group %d"] = "Groupe %d"
+  L["Not on list"] = "Hors de la liste"
+  L["+%d more"] = "+%d de plus"
 
 elseif locale == "itIT" then
   L["%s is in both group %d and %d."] = "%s è sia nel gruppo %d che nel gruppo %d."
@@ -223,6 +232,9 @@ elseif locale == "itIT" then
   L["Checking specs … (%d/%d)"] = "Controllo specializzazioni … (%d/%d)"
   L["Spec guessed from class: %s"] = "Specializzazione stimata dalla classe: %s"
   L["Auto can't run in combat."] = "Auto non funziona in combattimento."
+  L["Group %d"] = "Gruppo %d"
+  L["Not on list"] = "Fuori lista"
+  L["+%d more"] = "+%d altri"
 
 elseif locale == "koKR" then
   L["%s is in both group %d and %d."] = "%s 님이 %d파티와 %d파티에 모두 있습니다."
@@ -276,6 +288,9 @@ elseif locale == "koKR" then
   L["Checking specs … (%d/%d)"] = "전문화 확인 중 … (%d/%d)"
   L["Spec guessed from class: %s"] = "직업으로 추정한 전문화: %s"
   L["Auto can't run in combat."] = "전투 중에는 자동을 사용할 수 없습니다."
+  L["Group %d"] = "%d 파티"
+  L["Not on list"] = "목록에 없음"
+  L["+%d more"] = "+%d명 더"
 
 elseif locale == "ptBR" then
   L["%s is in both group %d and %d."] = "%s está no grupo %d e no grupo %d."
@@ -329,6 +344,9 @@ elseif locale == "ptBR" then
   L["Checking specs … (%d/%d)"] = "Verificando especializações … (%d/%d)"
   L["Spec guessed from class: %s"] = "Especialização estimada pela classe: %s"
   L["Auto can't run in combat."] = "Auto não funciona em combate."
+  L["Group %d"] = "Grupo %d"
+  L["Not on list"] = "Fora da lista"
+  L["+%d more"] = "+%d a mais"
 
 elseif locale == "ruRU" then
   L["%s is in both group %d and %d."] = "%s указан и в группе %d, и в группе %d."
@@ -382,6 +400,9 @@ elseif locale == "ruRU" then
   L["Checking specs … (%d/%d)"] = "Проверка специализаций … (%d/%d)"
   L["Spec guessed from class: %s"] = "Специализация определена по классу: %s"
   L["Auto can't run in combat."] = "Авто не работает в бою."
+  L["Group %d"] = "Группа %d"
+  L["Not on list"] = "Нет в списке"
+  L["+%d more"] = "ещё %d"
 
 elseif locale == "zhCN" then
   L["%s is in both group %d and %d."] = "%s 同时在第%d小队和第%d小队中。"
@@ -435,6 +456,9 @@ elseif locale == "zhCN" then
   L["Checking specs … (%d/%d)"] = "正在检查专精……（%d/%d）"
   L["Spec guessed from class: %s"] = "按职业推测专精：%s"
   L["Auto can't run in combat."] = "战斗中无法使用自动。"
+  L["Group %d"] = "第%d小队"
+  L["Not on list"] = "不在名单中"
+  L["+%d more"] = "还有%d人"
 
 elseif locale == "zhTW" then
   L["%s is in both group %d and %d."] = "%s 同時在第%d小隊和第%d小隊中。"
@@ -488,4 +512,7 @@ elseif locale == "zhTW" then
   L["Checking specs … (%d/%d)"] = "正在檢查專精……（%d/%d）"
   L["Spec guessed from class: %s"] = "依職業推測專精：%s"
   L["Auto can't run in combat."] = "戰鬥中無法使用自動。"
+  L["Group %d"] = "第%d小隊"
+  L["Not on list"] = "不在名單中"
+  L["+%d more"] = "還有%d人"
 end

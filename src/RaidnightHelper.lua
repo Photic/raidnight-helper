@@ -330,6 +330,29 @@ local function MatchPlan(plan, members)
   return res
 end
 
+-- For the group grid: the names on the list that are in the raid
+-- ({ [name] = info }) and the raid members who are not on the list
+-- ({ info, ... }). info is { name, group, class, role }: the group they are
+-- in now, UnitClass's file name ("" when unknown) and the role from
+-- Roles.lua. Both are empty outside a raid.
+function ns.MatchRaid(plan)
+  local found, extras = {}, {}
+  if not IsInRaid() then return found, extras end
+  local members = ReadRoster()
+  MatchPlan(plan, members)
+  for _, m in ipairs(members) do
+    local unit = "raid" .. m.index
+    local _, class = UnitClass(unit)
+    local info = { name = m.name, group = m.group, class = class or "", role = ns.UnitRole(unit) }
+    if m.entry then
+      found[m.entry.name] = info
+    else
+      extras[#extras + 1] = info
+    end
+  end
+  return found, extras
+end
+
 -- Adds the players on the list who are not in the raid to groups
 -- ({ [group] = { names } }): each to their own group, or when that is full,
 -- to the first group with room.
@@ -506,7 +529,7 @@ local previewToken = 0
 
 function ns.UpdatePreview()
   if runner.active or ns.IsCheckingSpecs() or not ns.frame or not ns.frame:IsShown() then return end
-  ns.SetStatus(ns.BuildPreview(ns.editBox:GetText()))
+  ns.SetStatus(ns.BuildPreview(GetDB().text))
 end
 
 function ns.SchedulePreview()
@@ -528,7 +551,9 @@ local function Stop(msg)
   runner.eventToken = runner.eventToken + 1
   if msg then
     ns.SetStatus(msg)
-    for line in msg:gmatch("[^\n]+") do Print(line) end
+    if not runner.quiet then
+      for line in msg:gmatch("[^\n]+") do Print(line) end
+    end
   end
 end
 
@@ -546,12 +571,20 @@ end
 
 -- Replaces the layout text, without a preview replacing the status line.
 local function SetLayoutText(text)
-  if ns.editBox then ns.editBox:SetText(text) else GetDB().text = text end
+  GetDB().text = text
+  ns.RefreshGrid()
   previewToken = previewToken + 1
 end
 
--- After Auto, or when players who are not on the list got a group, the text
--- box takes the raid as it now is, and with auto-save on, the selected boss
+-- Replaces the layout text and previews it.
+function ns.SetLayout(text)
+  GetDB().text = text
+  ns.RefreshGrid()
+  ns.SchedulePreview()
+end
+
+-- After Auto, or when players who are not on the list got a group, the layout
+-- takes the raid as it now is, and with auto-save on, the selected boss
 -- keeps it. Players on the list who are not in the raid stay on it.
 local function KeepResult(res)
   local groups = ns.RaidGroups()
@@ -627,6 +660,10 @@ function ns.Step(fromTimeout)
   local op, a, b = NextMove(runner.plan, members, counts, runner.moveExtras)
   if not op then
     if (runner.auto or runner.placed) and CountWrong(members) == 0 then KeepResult(res) end
+    if runner.quiet then
+      Stop()
+      return ns.SchedulePreview()
+    end
     return Stop(Summary(runner.plan, res, members))
   end
 
@@ -644,8 +681,9 @@ function ns.Step(fromTimeout)
   ArmTimeout()
 end
 
--- auto is true when the layout came from Auto.
-function ns.Apply(text, auto)
+-- auto is true when the layout came from Auto. quiet is true for a move from
+-- the grid: only the players in text are placed, and nothing goes to chat.
+function ns.Apply(text, auto, quiet)
   if runner.active then Stop() end
 
   local plan = ns.ParseInput(text)
@@ -662,14 +700,15 @@ function ns.Apply(text, auto)
   local ok, err = CanArrange()
   if not ok then
     ns.SetStatus("|cffff5555" .. err .. "|r")
-    Print(err)
+    if not quiet then Print(err) end
     return false
   end
 
   runner.active = true
   runner.plan = plan
   runner.auto = auto
-  runner.moveExtras = GetDB().moveExtras
+  runner.quiet = quiet
+  runner.moveExtras = GetDB().moveExtras and not quiet
   runner.targets, runner.placed = nil, false
   runner.steps, runner.failures, runner.pending = 0, 0, nil
   runner.waitingCombat = false
@@ -697,8 +736,23 @@ function ns.StopSorting()
   if runner.active then Stop(L["Sorting stopped."]) end
 end
 
--- Balances groups 1-4 by role (see AutoGroups.lua), puts the result in the
--- text box and sorts the raid by it.
+-- Moves players in the raid for the grid: { [name] = group }, names as on the
+-- list. Where a group is full, someone in it swaps places, preferring a
+-- player who is to go where the mover came from. Outside a raid it does
+-- nothing.
+function ns.MoveInRaid(moves)
+  if not IsInRaid() then return end
+  local groups = {}
+  for name, g in pairs(moves) do
+    groups[g] = groups[g] or {}
+    table.insert(groups[g], name)
+  end
+  local text = ns.FormatLayout(groups)
+  if text ~= "" then ns.Apply(text, false, true) end
+end
+
+-- Balances groups 1-4 by role (see AutoGroups.lua), makes the result the
+-- layout and sorts the raid by it.
 function ns.Auto()
   if runner.active then Stop() end
   local ok, err = CanArrange()
@@ -757,11 +811,24 @@ local function MakeButton(parent, text, width)
 end
 ns.MakeButton = MakeButton
 
+-- Makes text or a code from the website the layout. The grid writes the
+-- layout as plain text, so it is stored that way from the start.
+local function Import(raw)
+  local plan = ns.ParseInput(raw)
+  if plan.empty then return end
+  if #plan.errors > 0 then
+    ns.SetStatus("|cffff5555" .. table.concat(plan.errors, "\n") .. "|r")
+    return
+  end
+  for _, w in ipairs(plan.warnings) do Print(w) end
+  ns.SetLayout(ns.FormatLayout(plan.groups))
+end
+
 function ns.CreateUI()
   if ns.frame then return ns.frame end
 
   local f = CreateFrame("Frame", "RaidnightHelperFrame", UIParent, "BasicFrameTemplateWithInset")
-  f:SetSize(480, 474)
+  f:SetHeight(500) -- the width follows the grid, below
   f:SetPoint("CENTER")
   f:SetFrameStrata("DIALOG")
   f:SetMovable(true)
@@ -781,9 +848,12 @@ function ns.CreateUI()
   hint:SetPoint("TOPLEFT", 16, -126)
   hint:SetText(L["Paste the layout from the website (Ctrl+V):"])
 
-  local sf = CreateFrame("ScrollFrame", "RaidnightHelperScrollFrame", f, "UIPanelScrollFrameTemplate")
+  -- The paste field shows one line. Its edit box is multi-line, so a pasted
+  -- text keeps its lines; the scroll frame clips the rest.
+  local sf = CreateFrame("ScrollFrame", "RaidnightHelperScrollFrame", f)
   sf:SetPoint("TOPLEFT", 16, -144)
-  sf:SetPoint("BOTTOMRIGHT", -36, 118)
+  sf:SetPoint("TOPRIGHT", -16, -144)
+  sf:SetHeight(16)
 
   local bg = f:CreateTexture(nil, "ARTWORK")
   bg:SetColorTexture(0, 0, 0, 0.4)
@@ -795,22 +865,35 @@ function ns.CreateUI()
   eb:SetAutoFocus(false)
   eb:SetMaxLetters(0)
   eb:SetFontObject(ChatFontNormal)
-  eb:SetWidth(380)
-  eb:SetHeight(200)
-  eb:SetText(GetDB().text or "")
+  eb:SetWidth(530)
+  eb:SetHeight(16)
   eb:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-  eb:SetScript("OnTextChanged", function(self)
-    GetDB().text = self:GetText()
-    ns.SchedulePreview()
+  -- A paste can come in as several text changes, so the field is read a frame
+  -- later, when all of it is there, and emptied again.
+  local pasteToken = 0
+  eb:SetScript("OnTextChanged", function(self, userInput)
+    if not userInput then return end
+    pasteToken = pasteToken + 1
+    local token = pasteToken
+    C_Timer.After(0, function()
+      if token ~= pasteToken then return end
+      local text = self:GetText()
+      self:SetText("")
+      Import(text)
+    end)
   end)
   sf:SetScrollChild(eb)
   sf:SetScript("OnSizeChanged", function(_, width) eb:SetWidth(width) end)
   sf:EnableMouse(true)
   sf:SetScript("OnMouseDown", function() eb:SetFocus() end)
 
+  local grid = ns.CreateGrid(f)
+  grid:SetPoint("TOPLEFT", 16, -172)
+  f:SetWidth(grid:GetWidth() + 32)
+
   local cb = CreateFrame("CheckButton", "RaidnightHelperExtrasCheck", f, "UICheckButtonTemplate")
   cb:SetSize(24, 24)
-  cb:SetPoint("TOPLEFT", sf, "BOTTOMLEFT", -6, -8)
+  cb:SetPoint("TOPLEFT", grid, "BOTTOMLEFT", -6, -6)
   cb:SetChecked(GetDB().moveExtras)
   cb:SetScript("OnClick", function(self)
     GetDB().moveExtras = self:GetChecked() and true or false
@@ -831,12 +914,12 @@ function ns.CreateUI()
   apply:SetPoint("BOTTOMRIGHT", -12, 12)
   apply:SetScript("OnClick", function()
     eb:ClearFocus()
-    ns.Apply(eb:GetText())
+    ns.Apply(GetDB().text)
   end)
 
   local invite = MakeButton(f, L["Invite missing"], 140)
   invite:SetPoint("RIGHT", apply, "LEFT", -6, 0)
-  invite:SetScript("OnClick", function() ns.InviteMissing(eb:GetText()) end)
+  invite:SetScript("OnClick", function() ns.InviteMissing(GetDB().text) end)
 
   local auto = MakeButton(f, L["Auto"], 70)
   auto:SetPoint("RIGHT", invite, "LEFT", -6, 0)
@@ -848,17 +931,17 @@ function ns.CreateUI()
   local clear = MakeButton(f, L["Clear"], 70)
   clear:SetPoint("BOTTOMLEFT", 12, 12)
   clear:SetScript("OnClick", function()
-    eb:SetText("")
+    ns.SetLayout("")
     eb:SetFocus()
   end)
 
   f:SetScript("OnShow", function()
     ns.UpdatePreview()
-    if eb:GetText() == "" then eb:SetFocus() end
+    if GetDB().text == "" then eb:SetFocus() end
   end)
-  ns.CreateBossBar(f, eb) -- after OnShow is set, since the bar hooks it
+  ns.CreateBossBar(f) -- after OnShow is set, since the bar hooks it
 
-  ns.frame, ns.editBox, ns.statusText = f, eb, status
+  ns.frame, ns.statusText = f, status
   if ns.lastStatus then status:SetText(ns.lastStatus) end
   return f
 end
@@ -882,6 +965,7 @@ function ns.OnEvent(event, arg1)
       DB = RaidnightHelperDB
     end
   elseif event == "GROUP_ROSTER_UPDATE" then
+    ns.RefreshGrid()
     if runner.active then
       runner.eventToken = runner.eventToken + 1
       local token = runner.eventToken

@@ -1,7 +1,7 @@
 -- BossLayouts
 -- A row of boss icons at the top of the Raidnight Helper window. Each boss keeps one
--- layout: Save stores the text box under the selected boss, and clicking a
--- boss loads its layout back into the text box. A pull selects that boss, and
+-- layout: Save stores the current layout under the selected boss, and clicking
+-- a boss loads its layout back into the grid. A pull selects that boss, and
 -- with auto-save on, it also stores the raid's actual groups under it.
 --
 -- Bosses come from the Encounter Journal, so the row follows the current tier
@@ -109,7 +109,7 @@ end
 local function OnBossClick(self)
   bar.selected = self.boss.id
   local layout = Layouts()[self.boss.id]
-  if layout then bar.editBox:SetText(layout.text) end
+  if layout then ns.SetLayout(layout.text) end
   UpdateButtons()
 end
 
@@ -189,7 +189,14 @@ local function Refresh()
   local here = CurrentInstance()
   local target = (HasRaid(here) and here) or bar.raid
     or (last and HasRaid(last.raid) and last.raid) or (bar.raids[1] and bar.raids[1].id)
-  if not target then return UpdateButtons() end
+  if not target then
+    -- Right after login or a reload the Encounter Journal can come back
+    -- empty, so it is asked again shortly while the window is open.
+    C_Timer.After(1, function()
+      if #bar.raids == 0 and bar.row:IsVisible() then Refresh() end
+    end)
+    return UpdateButtons()
+  end
   SelectRaid(target)
   if last and last.raid == target and (bar.pulled or not bar.selected) then
     bar.selected = last.boss
@@ -201,7 +208,7 @@ end
 local function SaveSelected()
   local boss = SelectedBoss()
   if not boss then return end
-  local text = bar.editBox:GetText()
+  local text = ns.GetDB().text
   local plan = ns.ParseInput(text)
   if plan.empty then
     ns.SetStatus(L["Paste a layout first."])
@@ -243,8 +250,7 @@ local function DeleteSelected()
   if boss then StaticPopup_Show("RAIDNIGHT_DELETE_LAYOUT", boss.name, nil, boss) end
 end
 
-function ns.CreateBossBar(f, editBox)
-  bar.editBox = editBox
+function ns.CreateBossBar(f)
 
   local dropdown = CreateFrame("DropdownButton", nil, f, "WowStyle1DropdownTemplate")
   dropdown:SetPoint("TOPLEFT", 14, -30)

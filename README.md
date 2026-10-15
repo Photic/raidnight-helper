@@ -9,18 +9,19 @@ The in-game interface follows the language of the game client: English, German, 
 ### Group sorting
 Paste a group layout from the website and the raid sorts itself into the planned groups.
 
-- Open the window with `/raidnight` (or `/rn`) and paste the layout with Ctrl+V.
+- Open the window with `/raidnight` (or `/rn`) and paste the layout into the field at the top with Ctrl+V. The groups fill in at once.
+- The layout shows as groups 1–8, with 1–4 above 5–8. Drag a name onto another name to swap the two, onto an empty slot to move it there, or to **Not on list** to take it off the list. Raid members who are not on the list wait in that column and can be dragged into a group. Names show in class colours with a role icon (tank, healer, melee or ranged), and grey while the player is not in the raid. In a raid, the players you drag move in the raid at once, the same way Sort raid moves them (leader or assistant, and after combat when in combat); everyone else stays put until **Sort raid**.
 - Accepts plain text or the website's `RS1:` code.
 - A live preview shows how many players are in the wrong group, who on the list is not in the raid, and which names match more than one player.
 - **Sort raid** moves players one at a time and waits for each move to land before the next. Sorting pauses in combat and continues when combat ends.
-- **Fill open slots with players not on the list** (on by default): players on the list keep their groups, and players who are not on it take the open slots in groups 1–4 by role and class, with the same rules as Auto. Slots of list players who are not in the raid stay free for them; anyone left over goes to the free groups. Afterwards the text box shows the raid as it now is, with the players who are not in the raid still on the list, and with auto-save on, the selected boss keeps it.
+- **Fill open slots with players not on the list** (on by default): players on the list keep their groups, and players who are not on it take the open slots in groups 1–4 by role and class, with the same rules as Auto. Slots of list players who are not in the raid stay free for them; anyone left over goes to the free groups. Afterwards the layout shows the raid as it now is, with the players who are not in the raid still on the list, and with auto-save on, the selected boss keeps it.
 - **Invite missing** invites everyone on the list who is not in the raid yet.
 - Names match regardless of case and accents, so `Majestic` finds `Májestíc`. Write `Name-Realm` when two players share a name.
 - Requires raid leader or assistant to move players.
 
 #### Auto
 
-**Auto** (or `/raidnight auto`) balances groups 1–4 by role. Groups 1+2 and 3+4 are two halves, and each half gets the same share of tanks, healers, melee and ranged, as close as the raid allows. Damage dealers of the same class are split between the halves too, as far as the melee and ranged balance allows: 2 Hunters means 1 in each half. Groups 5–8 are left alone, so a bench stays a bench. The result goes into the text box and the raid is sorted by it; with auto-save on, the selected boss keeps it. Players on the list who are not in the raid stay on it: in their own group if Auto left room there, otherwise in the first group with room.
+**Auto** (or `/raidnight auto`) balances groups 1–4 by role. Groups 1+2 and 3+4 are two halves, and each half gets the same share of tanks, healers, melee and ranged, as close as the raid allows. Damage dealers of the same class are split between the halves too, as far as the melee and ranged balance allows: 2 Hunters means 1 in each half. Groups 5–8 are left alone, so a bench stays a bench. The result becomes the layout and the raid is sorted by it; with auto-save on, the selected boss keeps it. Players on the list who are not in the raid stay on it: in their own group if Auto left room there, otherwise in the first group with room.
 
 ```
 20 players: 2 tanks, 4 healers, 7 melee, 7 ranged
@@ -35,9 +36,9 @@ Tanks and healers come from the raid role. Melee or ranged comes from the class,
 
 A row of boss icons at the top of the window shows the bosses of the current raid tier, read from the Encounter Journal. Pick the raid in the dropdown; it starts on the raid you are in.
 
-- Click a boss to load its saved layout into the text box.
+- Click a boss to load its saved layout into the groups.
 - The boss you pulled last is selected automatically, also after a `/reload`. Click another boss to choose it instead.
-- **Save** stores the text box under the selected boss. **Delete** removes it.
+- **Save** stores the current layout under the selected boss. **Delete** removes it.
 - Faded icons have nothing saved yet. Hover an icon to see when its layout was saved.
 - With **Save the raid's groups to the boss on pull** checked (the default), every pull stores the raid's groups as they are under that boss, so the next click on it brings back the groups from the last pull. Raid Finder pulls are skipped.
 - Layouts are stored account-wide in WoW's saved variables, so addon updates keep them.
