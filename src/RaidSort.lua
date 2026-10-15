@@ -32,10 +32,11 @@ local MAX_FAILURES = 3     -- rejected moves in a row → give up
 local STEP_DELAY   = 0.1   -- short pause after a roster update before the next move
 local MAX_STEPS    = 150   -- safety stop
 
-local DEFAULTS = { text = "", moveExtras = true }
+local DEFAULTS = { text = "", moveExtras = true, autoSave = true }
 local DB
 
 local function GetDB() return DB or DEFAULTS end
+ns.GetDB = GetDB
 
 -- Midnight can return "secret values" for some unit data; we leave those alone.
 local issecret = issecretvalue or function() return false end
@@ -43,6 +44,7 @@ local issecret = issecretvalue or function() return false end
 local function Print(msg)
   print("|cff33ff99RaidSort|r: " .. msg)
 end
+ns.Print = Print
 
 local function Trim(s)
   return (s:gsub("^%s+", ""):gsub("%s+$", ""))
@@ -615,12 +617,13 @@ local function MakeButton(parent, text, width)
   b:SetWidth(math.max(width, b:GetTextWidth() + 24)) -- room for longer translations
   return b
 end
+ns.MakeButton = MakeButton
 
 function ns.CreateUI()
   if ns.frame then return ns.frame end
 
   local f = CreateFrame("Frame", "RaidSortFrame", UIParent, "BasicFrameTemplateWithInset")
-  f:SetSize(440, 380)
+  f:SetSize(440, 474)
   f:SetPoint("CENTER")
   f:SetFrameStrata("DIALOG")
   f:SetMovable(true)
@@ -637,11 +640,11 @@ function ns.CreateUI()
   title:SetText("RaidSort")
 
   local hint = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  hint:SetPoint("TOPLEFT", 16, -32)
+  hint:SetPoint("TOPLEFT", 16, -126)
   hint:SetText(L["Paste the layout from the website (Ctrl+V):"])
 
   local sf = CreateFrame("ScrollFrame", "RaidSortScrollFrame", f, "UIPanelScrollFrameTemplate")
-  sf:SetPoint("TOPLEFT", 16, -50)
+  sf:SetPoint("TOPLEFT", 16, -144)
   sf:SetPoint("BOTTOMRIGHT", -36, 118)
 
   local bg = f:CreateTexture(nil, "ARTWORK")
@@ -708,6 +711,7 @@ function ns.CreateUI()
     ns.UpdatePreview()
     if eb:GetText() == "" then eb:SetFocus() end
   end)
+  ns.CreateBossBar(f, eb) -- after OnShow is set, since the bar hooks it
 
   ns.frame, ns.editBox, ns.statusText = f, eb, status
   if ns.lastStatus then status:SetText(ns.lastStatus) end

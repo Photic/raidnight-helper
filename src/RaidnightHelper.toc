@@ -18,3 +18,4 @@
 
 Locales.lua
 RaidSort.lua
+BossLayouts.lua
