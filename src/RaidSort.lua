@@ -11,11 +11,12 @@
 -- Names can also go one per line under a "Group N" line, and "Gruppe", "G1",
 -- "1." etc. work too. Names can include the realm: "Name-Realm".
 --
--- Commands:
---   /raidsort          open/close the window
---   /raidsort apply    sort by the last pasted layout (handy in a macro)
---   /raidsort invite   invite players on the list who are not in the raid
---   /raidsort stop     stop a sort in progress
+-- Commands (/rn works as a short form):
+--   /raidnight         open/close the window
+--   /raidnight apply   sort by the last pasted layout (handy in a macro)
+--   /raidnight auto    balance groups 1-4 by role and sort (see AutoGroups.lua)
+--   /raidnight invite  invite players on the list who are not in the raid
+--   /raidnight stop    stop a sort in progress
 --
 -- Player-facing text goes through L (see Locales.lua).
 
@@ -207,6 +208,17 @@ function ns.ParseText(text)
   return plan
 end
 
+-- The text format for groups[g] = { names }, as ParseText reads it.
+function ns.FormatLayout(groups)
+  local lines = {}
+  for g = 1, MAX_GROUPS do
+    if groups[g] and #groups[g] > 0 then
+      lines[#lines + 1] = ("Group %d: %s"):format(g, table.concat(groups[g], ", "))
+    end
+  end
+  return table.concat(lines, "\n")
+end
+
 -- Accepts "RS1:<base64>", bare base64 or plain text.
 function ns.ParseInput(raw)
   local s = Trim(raw or "")
@@ -314,6 +326,36 @@ local function MatchPlan(plan, members)
   return res
 end
 
+-- Gives players who are not on the list a group in the open slots of groups
+-- 1-4, by role (see AutoGroups.lua). Players on the list keep their groups,
+-- and slots of list players who are not in the raid count as open. Among
+-- players of the same role, those already in groups 1-4 get a slot first;
+-- anyone without a slot is left for the free groups. Returns { [name] = group }.
+local function PlaceExtras(members)
+  local fixed, extras, far = {}, {}, {}
+  for _, m in ipairs(members) do
+    local role = ns.UnitRole("raid" .. m.index)
+    if m.desired then
+      if m.desired <= ns.AUTO_GROUPS then fixed[#fixed + 1] = { group = m.desired, role = role } end
+    else
+      local list = m.group <= ns.AUTO_GROUPS and extras or far
+      list[#list + 1] = { name = m.name, role = role }
+    end
+  end
+  for _, p in ipairs(far) do extras[#extras + 1] = p end
+
+  ns.BalanceGroups(fixed, extras)
+  local targets = {}
+  for _, p in ipairs(extras) do targets[p.name] = p.target end
+  return targets
+end
+
+local function ApplyTargets(members, targets)
+  for _, m in ipairs(members) do
+    if not m.desired and targets[m.name] then m.desired = targets[m.name] end
+  end
+end
+
 -- Finds the next move. Each move puts at least one player on the list in
 -- their final group (players already in place are never moved again), so it ends.
 local function NextMove(plan, members, counts, moveExtras)
@@ -410,7 +452,9 @@ function ns.BuildPreview(text)
   else
     local members, counts = ReadRoster()
     local res = MatchPlan(plan, members)
-    if not NextMove(plan, members, counts, GetDB().moveExtras) then
+    local moveExtras = GetDB().moveExtras
+    if moveExtras then ApplyTargets(members, PlaceExtras(members)) end
+    if not NextMove(plan, members, counts, moveExtras) then
       lines[#lines + 1] = "|cff55ff55" .. L["The raid matches the layout."] .. "|r"
     else
       local wrong = CountWrong(members)
@@ -432,7 +476,7 @@ end
 local previewToken = 0
 
 function ns.UpdatePreview()
-  if runner.active or not ns.frame or not ns.frame:IsShown() then return end
+  if runner.active or ns.IsCheckingSpecs() or not ns.frame or not ns.frame:IsShown() then return end
   ns.SetStatus(ns.BuildPreview(ns.editBox:GetText()))
 end
 
@@ -471,6 +515,22 @@ local function Summary(plan, res, members)
   return table.concat(lines, "\n")
 end
 
+-- Replaces the layout text, without a preview replacing the status line.
+local function SetLayoutText(text)
+  if ns.editBox then ns.editBox:SetText(text) else GetDB().text = text end
+  previewToken = previewToken + 1
+end
+
+-- After Auto, or when players who are not on the list got a group, the text
+-- box takes the raid as it now is, and with auto-save on, the selected boss
+-- keeps it.
+local function KeepResult()
+  local text = ns.ReadGroups()
+  if not text then return end
+  SetLayoutText(text)
+  if GetDB().autoSave then ns.SaveToSelectedBoss(text) end
+end
+
 local function ArmTimeout()
   runner.timeoutToken = runner.timeoutToken + 1
   local token = runner.timeoutToken
@@ -494,7 +554,7 @@ end
 -- One step: wait for the previous move to land, then find the next one.
 -- There is never more than one move in flight at a time.
 function ns.Step(fromTimeout)
-  if not runner.active then return end
+  if not runner.active or runner.checking then return end
 
   local ok, err = CanArrange()
   if not ok then return Stop("|cffff5555" .. err .. "|r") end
@@ -531,8 +591,12 @@ function ns.Step(fromTimeout)
 
   local members, counts = ReadRoster()
   local res = MatchPlan(runner.plan, members)
+  if runner.targets then ApplyTargets(members, runner.targets) end
   local op, a, b = NextMove(runner.plan, members, counts, runner.moveExtras)
-  if not op then return Stop(Summary(runner.plan, res, members)) end
+  if not op then
+    if (runner.auto or runner.placed) and CountWrong(members) == 0 then KeepResult() end
+    return Stop(Summary(runner.plan, res, members))
+  end
 
   runner.steps = runner.steps + 1
   if runner.steps > MAX_STEPS then
@@ -548,13 +612,14 @@ function ns.Step(fromTimeout)
   ArmTimeout()
 end
 
-function ns.Apply(text)
+-- auto is true when the layout came from Auto.
+function ns.Apply(text, auto)
   if runner.active then Stop() end
 
   local plan = ns.ParseInput(text)
   if plan.empty then
     ns.SetStatus(L["Paste a layout first."])
-    Print(L["No layout – paste one in /raidsort first."])
+    Print(L["No layout – paste one in /raidnight first."])
     return false
   end
   if #plan.errors > 0 then
@@ -571,16 +636,54 @@ function ns.Apply(text)
 
   runner.active = true
   runner.plan = plan
+  runner.auto = auto
   runner.moveExtras = GetDB().moveExtras
+  runner.targets, runner.placed = nil, false
   runner.steps, runner.failures, runner.pending = 0, 0, nil
   runner.waitingCombat = false
-  ns.SetStatus(L["Sorting raid …"])
-  ns.Step()
+
+  -- Players who are not on the list are placed by role, so specs come first.
+  -- Auto has just checked them.
+  local function Start()
+    if not runner.active or runner.plan ~= plan then return end
+    runner.checking = false
+    if runner.moveExtras then
+      local members = ReadRoster()
+      MatchPlan(plan, members)
+      runner.targets = PlaceExtras(members)
+      runner.placed = next(runner.targets) ~= nil
+    end
+    ns.SetStatus(L["Sorting raid …"])
+    ns.Step()
+  end
+  runner.checking = true
+  if runner.moveExtras and not auto then ns.CheckSpecs(Start) else Start() end
   return true
 end
 
 function ns.StopSorting()
   if runner.active then Stop(L["Sorting stopped."]) end
+end
+
+-- Balances groups 1-4 by role (see AutoGroups.lua), puts the result in the
+-- text box and sorts the raid by it.
+function ns.Auto()
+  if runner.active then Stop() end
+  local ok, err = CanArrange()
+  if ok and InCombatLockdown() then ok, err = false, L["Auto can't run in combat."] end
+  if not ok then
+    ns.SetStatus("|cffff5555" .. err .. "|r")
+    Print(err)
+    return
+  end
+  ns.CheckSpecs(function()
+    local text, guessed = ns.AutoLayout()
+    SetLayoutText(text)
+    if #guessed > 0 then
+      Print(L["Spec guessed from class: %s"]:format(table.concat(guessed, ", ")))
+    end
+    ns.Apply(text, true)
+  end)
 end
 
 function ns.InviteMissing(text)
@@ -623,7 +726,7 @@ function ns.CreateUI()
   if ns.frame then return ns.frame end
 
   local f = CreateFrame("Frame", "RaidSortFrame", UIParent, "BasicFrameTemplateWithInset")
-  f:SetSize(440, 474)
+  f:SetSize(480, 474)
   f:SetPoint("CENTER")
   f:SetFrameStrata("DIALOG")
   f:SetMovable(true)
@@ -680,7 +783,7 @@ function ns.CreateUI()
   end)
   local cbLabel = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   cbLabel:SetPoint("LEFT", cb, "RIGHT", 2, 0)
-  cbLabel:SetText(L["Move players who are not on the list to the free groups"])
+  cbLabel:SetText(L["Fill open slots with players not on the list (by role)"])
 
   local status = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   status:SetPoint("TOPLEFT", cb, "BOTTOMLEFT", 6, -4)
@@ -699,6 +802,13 @@ function ns.CreateUI()
   local invite = MakeButton(f, L["Invite missing"], 140)
   invite:SetPoint("RIGHT", apply, "LEFT", -6, 0)
   invite:SetScript("OnClick", function() ns.InviteMissing(eb:GetText()) end)
+
+  local auto = MakeButton(f, L["Auto"], 70)
+  auto:SetPoint("RIGHT", invite, "LEFT", -6, 0)
+  auto:SetScript("OnClick", function()
+    eb:ClearFocus()
+    ns.Auto()
+  end)
 
   local clear = MakeButton(f, L["Clear"], 70)
   clear:SetPoint("BOTTOMLEFT", 12, 12)
@@ -764,12 +874,14 @@ events:RegisterEvent("PLAYER_REGEN_ENABLED")
 events:RegisterEvent("PLAYER_REGEN_DISABLED")
 events:SetScript("OnEvent", function(_, event, ...) ns.OnEvent(event, ...) end)
 
-SLASH_RAIDSORT1 = "/raidsort"
-SLASH_RAIDSORT2 = "/rsort"
-SlashCmdList.RAIDSORT = function(msg)
+SLASH_RAIDNIGHT1 = "/raidnight"
+SLASH_RAIDNIGHT2 = "/rn"
+SlashCmdList.RAIDNIGHT = function(msg)
   msg = Trim((msg or ""):lower())
   if msg == "apply" or msg == "sort" then
     ns.Apply(GetDB().text)
+  elseif msg == "auto" then
+    ns.Auto()
   elseif msg == "invite" then
     ns.InviteMissing(GetDB().text)
   elseif msg == "stop" then

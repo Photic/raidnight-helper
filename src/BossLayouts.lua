@@ -194,9 +194,17 @@ local function SaveSelected()
     ns.SetStatus("|cffff5555" .. table.concat(plan.errors, "\n") .. "|r")
     return
   end
+  ns.SaveToSelectedBoss(text)
+end
+
+-- Stores text under the boss selected in the bar. Returns true when saved.
+function ns.SaveToSelectedBoss(text)
+  local boss = SelectedBoss()
+  if not boss then return false end
   Layouts()[boss.id] = { text = text, saved = time() }
   UpdateButtons()
   ns.Print(L["Saved layout for %s."]:format(boss.name))
+  return true
 end
 
 StaticPopupDialogs.RAIDSORT_DELETE_LAYOUT = {
@@ -265,7 +273,7 @@ end
 local lastGroups -- the raid's groups from the last time the roster could be read
 
 -- The raid's groups as layout text, or nil if any of the roster can't be read.
-local function ReadGroups()
+function ns.ReadGroups()
   local groups = {}
   for i = 1, GetNumGroupMembers() or 0 do
     local name, _, subgroup = GetRaidRosterInfo(i)
@@ -273,13 +281,8 @@ local function ReadGroups()
     groups[subgroup] = groups[subgroup] or {}
     table.insert(groups[subgroup], name)
   end
-  local lines = {}
-  for g = 1, NUM_RAID_GROUPS do
-    if groups[g] then
-      lines[#lines + 1] = ("Group %d: %s"):format(g, table.concat(groups[g], ", "))
-    end
-  end
-  if #lines > 0 then return table.concat(lines, "\n") end
+  local text = ns.FormatLayout(groups)
+  if text ~= "" then return text end
 end
 
 -- The current tier's boss for an ENCOUNTER_START encounter ID.
@@ -297,7 +300,7 @@ end
 local function OnEncounterStart(encounterID)
   if not ns.GetDB().autoSave or not IsInRaid() or issecret(encounterID) then return end
   if IsInGroup(LE_PARTY_CATEGORY_INSTANCE) then return end -- Raid Finder groups are random
-  local text = ReadGroups() or lastGroups
+  local text = ns.ReadGroups() or lastGroups
   local boss = BossForEncounter(encounterID)
   if not text or not boss then return end
   Layouts()[boss.id] = { text = text, saved = time(), pull = true }
@@ -316,6 +319,6 @@ events:SetScript("OnEvent", function(_, event, ...)
   elseif not IsInRaid() then
     lastGroups = nil
   elseif not InCombatLockdown() then
-    lastGroups = ReadGroups() or lastGroups
+    lastGroups = ns.ReadGroups() or lastGroups
   end
 end)
