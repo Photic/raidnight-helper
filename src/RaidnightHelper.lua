@@ -351,10 +351,11 @@ local function AddMissing(groups, res)
 end
 
 -- Gives players who are not on the list a group in the open slots of groups
--- 1-4, by role (see AutoGroups.lua). Players on the list keep their groups,
--- and slots of list players who are not in the raid are held for them. Among
--- players of the same role, those already in groups 1-4 get a slot first;
--- anyone without a slot is left for the free groups. Returns { [name] = group }.
+-- 1-4, by role and class (see AutoGroups.lua). Players on the list keep their
+-- groups, and slots of list players who are not in the raid are held for
+-- them. Among players of the same role, those already in groups 1-4 get a
+-- slot first; anyone without a slot is left for the free groups. Returns
+-- { [name] = group }.
 local function PlaceExtras(members, res)
   local fixed, extras, far = {}, {}, {}
   for _, e in ipairs(res.missingEntries) do
@@ -362,11 +363,12 @@ local function PlaceExtras(members, res)
   end
   for _, m in ipairs(members) do
     local role = ns.UnitRole("raid" .. m.index)
+    local _, class = UnitClass("raid" .. m.index)
     if m.desired then
-      if m.desired <= ns.AUTO_GROUPS then fixed[#fixed + 1] = { group = m.desired, role = role } end
+      if m.desired <= ns.AUTO_GROUPS then fixed[#fixed + 1] = { group = m.desired, role = role, class = class } end
     else
       local list = m.group <= ns.AUTO_GROUPS and extras or far
-      list[#list + 1] = { name = m.name, role = role }
+      list[#list + 1] = { name = m.name, role = role, class = class }
     end
   end
   for _, p in ipairs(far) do extras[#extras + 1] = p end
