@@ -1,0 +1,9 @@
+## Interface: 120007, 120100
+## Title: RaidSort
+## Notes: Indsæt en gruppeopstilling (tekst eller RS1-kode) og sorter raidet automatisk.
+## Author: Photic
+## Version: 1.0.0
+## SavedVariables: RaidSortDB
+## IconTexture: Interface\Icons\INV_Misc_GroupNeedMore
+
+RaidSort.lua
