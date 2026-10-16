@@ -16,6 +16,7 @@
 --   /raidnight         open/close the window
 --   /raidnight apply   sort by the last pasted layout (handy in a macro)
 --   /raidnight auto    balance groups 1-4 by role and sort (see AutoGroups.lua)
+--   /raidnight balance even out the damage of groups 1+2 and 3+4 (see Balance.lua)
 --   /raidnight invite  invite players on the list who are not in the raid
 --   /raidnight stop    stop a sort in progress
 --
@@ -263,7 +264,8 @@ end
 ---------------------------------------------------------------------------
 
 -- Locked players never go into groups 1-4 (see ApplyLocks); only a drag in
--- the grid moves them there. While there is a list, players who are not on
+-- the grid moves them there. Balance leaves them where they are. While
+-- there is a list, players who are not on
 -- it start locked and the others unlocked; a click on the lock decides for
 -- the rest of the raid. Auto lets go of all locks. Kept by name as in the
 -- raid, and forgotten when you leave the raid: [name] = true or false.
@@ -709,8 +711,8 @@ function ns.SetLayout(text)
   ns.SchedulePreview()
 end
 
--- What Undo brings back: the layout and the locks from before Auto or
--- filling open slots last replaced the layout, and with auto-save on, the
+-- What Undo brings back: the layout and the locks from before Auto, Balance
+-- or filling open slots last replaced the layout, and with auto-save on, the
 -- selected boss's saved layout from then.
 local undo, undoButton
 
@@ -738,7 +740,7 @@ function ns.Undo()
   UpdateUndo()
 end
 
--- After Auto, or when players who are not on the list got a group, the layout
+-- After Auto or Balance, or when players who are not on the list got a group, the layout
 -- takes the raid as it now is, and with auto-save on, the selected boss
 -- keeps it. Players on the list who are not in the raid, or whose name
 -- matches more than one player, stay on it, and locked players stay locked.
@@ -868,7 +870,7 @@ function ns.Step(fromTimeout)
   ArmTimeout()
 end
 
--- auto is true when the layout came from Auto. moves is set for a move from
+-- auto is true when the layout came from Auto or Balance. moves is set for a move from
 -- the grid ({ [name] = group }, names as on the list): only those players
 -- are placed, and nothing goes to chat.
 function ns.Apply(text, auto, moves)
@@ -971,6 +973,92 @@ function ns.Auto()
     if #guessed > 0 then
       Print(L["Spec guessed from class: %s"]:format(table.concat(guessed, ", ")))
     end
+    ns.Apply(text, true)
+  end)
+end
+
+local function Percent(share) return math.floor(share * 100 + 0.5) end
+
+-- Evens out the damage of groups 1+2 and 3+4 by the last boss pull, or the
+-- newest fight in the damage meter, swapping damage dealers (see
+-- Balance.lua), makes the result the layout and sorts
+-- the raid by it. Damage dealers whose damage is not known count as an
+-- average one and stay where they are, like locked players.
+function ns.Balance()
+  if runner.active then Stop() end
+  local ok, err = CanArrange()
+  if ok and InCombatLockdown() then ok, err = false, L["Balance can't run in combat."] end
+  local damage, fight
+  if ok then damage, fight = ns.FightDamage() end
+  if not damage then
+    err = err or fight
+    ns.SetStatus("|cffff5555" .. err .. "|r")
+    Print(err)
+    return
+  end
+  ns.CheckSpecs(function()
+    local plan = ns.ParseInput(GetDB().text)
+    local members = ReadRoster()
+    local res = MatchPlan(plan, members)
+    ApplyLocks(members, plan)
+    local players, unknown, known, sum = {}, {}, 0, 0
+    for _, m in ipairs(members) do
+      local unit = "raid" .. m.index
+      local role = ns.UnitRole(unit)
+      if m.group <= ns.AUTO_GROUPS and (role == "MELEE" or role == "RANGED") then
+        local _, class = UnitClass(unit)
+        local guid = UnitGUID(unit)
+        local amount = (guid and not issecret(guid) and damage[guid]) or damage[m.name]
+        players[#players + 1] = {
+          name = m.name, group = m.group, role = role, class = class or "",
+          damage = amount, movable = amount ~= nil and not m.locked,
+        }
+        if amount then
+          known, sum = known + 1, sum + amount
+        else
+          unknown[#unknown + 1] = m.name
+        end
+      end
+    end
+    for _, p in ipairs(players) do
+      if not p.damage then p.damage = known > 0 and sum / known or 0 end
+    end
+
+    local swaps, before, after, even = ns.BalanceDamage(players)
+    if not swaps then
+      ns.SetStatus("|cffff5555" .. L["The damage meter has no damage from this fight."] .. "|r")
+      Print(L["The damage meter has no damage from this fight."])
+      return
+    end
+    Print(L["%s: groups 1+2 did %d%% of the damage, groups 3+4 %d%%."]:format(fight, Percent(before[1]), Percent(before[2])))
+    if #unknown > 0 then Print(L["No damage known for %s: counted as average."]:format(table.concat(unknown, ", "))) end
+    if #swaps == 0 then
+      local msg = even and L["Groups 1+2 and 3+4 are already even."] or L["No swap of damage dealers makes the halves more even."]
+      ns.SetStatus(msg)
+      Print(msg)
+      return
+    end
+
+    local groups = ns.RaidGroups()
+    if not groups then return end
+    local function Replace(g, from, to)
+      for i, name in ipairs(groups[g]) do
+        if name == from then groups[g][i] = to end
+      end
+    end
+    for _, pair in ipairs(swaps) do
+      local p, q = pair[1], pair[2]
+      Replace(p.group, p.name, q.name)
+      Replace(q.group, q.name, p.name)
+      Print(L["%s and %s trade places."]:format(p.name, q.name))
+    end
+    Print(L["After: groups 1+2 %d%%, groups 3+4 %d%%."]:format(Percent(after[1]), Percent(after[2])))
+    -- Players on the list who are not in the raid stay on it.
+    AddMissing(groups, res)
+    local text = ns.FormatLayout(groups)
+    Remember()
+    KeepLocks(members)
+    SetLayoutText(text)
     ns.Apply(text, true)
   end)
 end
@@ -1128,6 +1216,13 @@ function ns.CreateUI()
     ns.Auto()
   end)
 
+  local balance = MakeButton(f, L["Balance"], 70)
+  balance:SetPoint("RIGHT", auto, "LEFT", -6, 0)
+  balance:SetScript("OnClick", function()
+    eb:ClearFocus()
+    ns.Balance()
+  end)
+
   local clear = MakeButton(f, L["Clear"], 70)
   clear:SetPoint("BOTTOMLEFT", 12, 12)
   clear:SetScript("OnClick", function()
@@ -1139,6 +1234,11 @@ function ns.CreateUI()
   undoButton:SetPoint("LEFT", clear, "RIGHT", 6, 0)
   undoButton:SetScript("OnClick", ns.Undo)
   UpdateUndo()
+
+  -- The window widens when the buttons need more room, as in longer translations.
+  local row = clear:GetWidth() + undoButton:GetWidth() + balance:GetWidth() + auto:GetWidth()
+    + invite:GetWidth() + apply:GetWidth() + 4 * 6 + 2 * 12 + 12
+  f:SetWidth(math.max(f:GetWidth(), row))
 
   f:SetScript("OnShow", function()
     ns.UpdatePreview()
@@ -1207,6 +1307,8 @@ SlashCmdList.RAIDNIGHT = function(msg)
     ns.Apply(GetDB().text)
   elseif msg == "auto" then
     ns.Auto()
+  elseif msg == "balance" then
+    ns.Balance()
   elseif msg == "invite" then
     ns.InviteMissing(GetDB().text)
   elseif msg == "stop" then

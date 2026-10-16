@@ -14,9 +14,9 @@ Paste a group layout from the website and the raid sorts itself into the planned
 - Accepts plain text or the website's `RS1:` code.
 - A live preview shows how many players are in the wrong group, who on the list is not in the raid, and which names match more than one player.
 - **Sort raid** moves players one at a time and waits for each move to land before the next. Two players who are to trade groups swap in one move. Sorting pauses in combat and continues when combat ends. If the game rejects a move, that player stays put, the rest are sorted, and the summary names them.
-- **Locks**: click the lock on a name to lock or unlock that player. Sort raid never puts a locked player in groups 1–4. One who stands in groups 1–4 stays there, unless the list needs the slot; then they move to groups 5–8. In groups 5–8 they are sorted like anyone else. While there is a list, everyone not on it starts locked, so a helper on the sidelines is not pulled into the raid. Dragging a locked player still moves them, and **Auto** unlocks everyone. Locks last until you leave the raid or reload.
+- **Locks**: click the lock on a name to lock or unlock that player. Sort raid never puts a locked player in groups 1–4. One who stands in groups 1–4 stays there, unless the list needs the slot; then they move to groups 5–8. In groups 5–8 they are sorted like anyone else. **Balance** never moves a locked player. While there is a list, everyone not on it starts locked, so a helper on the sidelines is not pulled into the raid. Dragging a locked player still moves them, and **Auto** unlocks everyone. Locks last until you leave the raid or reload.
 - **Fill open slots with players not on the list** (on by default): players on the list keep their groups, and unlocked players who are not on it take the open slots in groups 1–4 by role and class, with the same rules as Auto. Slots of list players who are not in the raid, or whose name matches more than one player, stay free for them; anyone left over goes to the free groups. Afterwards the layout shows the raid as it now is, with the players who are not in the raid still on the list, and with auto-save on, the selected boss keeps it.
-- **Undo** brings back the layout, the locks and, with auto-save on, the boss's saved layout from before Auto or filling open slots last changed them. The raid stays as it is until **Sort raid**.
+- **Undo** brings back the layout, the locks and, with auto-save on, the boss's saved layout from before Auto, Balance or filling open slots last changed them. The raid stays as it is until **Sort raid**.
 - **Invite missing** invites everyone on the list who is not in the raid yet.
 - Names match regardless of case and accents, so `Majestic` finds `Májestíc`. Write `Name-Realm` when two players share a name.
 - Requires raid leader or assistant to move players.
@@ -33,6 +33,14 @@ Group 2: H M M R R     Group 4: H M M R R
 ```
 
 Tanks and healers come from the raid role. Melee or ranged comes from the class, except for Hunters, Shamans, Druids and Demon Hunters, whose spec is inspected. Specs are refreshed in the background during the session, also when someone changes spec. Anyone who can't be inspected is guessed from their class, and the chat says who.
+
+#### Balance
+
+**Balance** (or `/raidnight balance`) evens out the damage of groups 1+2 and 3+4, using the damage each damage dealer did in the last boss pull (kill or wipe), read from the game's damage meter. After a `/reload` it still finds that pull while the damage meter has it; otherwise it takes the newest fight in the meter, and the chat says which. Only melee and ranged count, and only they move: two players in opposite halves trade places, until the halves are within 5% of each other. Tanks, healers, locked players and groups 5–8 stay where they are.
+
+Auto's rules hold as far as they can. Balance first looks for swaps of melee for melee and ranged for ranged that keep each class as evenly split as before; then swaps of the same role, even if a class ends up less evenly split; and only then a melee for a ranged. Within that, it moves as few players as it can, and nobody moves twice. If the halves can't get within 5%, it gets them as close as it can.
+
+The chat shows each half's share of the damage before and after, and who trades places. A damage dealer the meter has no damage for (for example someone who joined after the pull) counts as an average one and stays put. The result becomes the layout and the raid is sorted by it; with auto-save on, the selected boss keeps it. Balance only does something when you press it. The damage meter's numbers are hidden in combat, so it only runs out of combat.
 
 #### Boss layouts
 
@@ -63,5 +71,6 @@ Names can also go one per line under a `Group N` line, and `Gruppe`, `G1` and `1
 | `/raidnight` | Open or close the window |
 | `/raidnight apply` | Sort by the last pasted layout (handy in a macro) |
 | `/raidnight auto` | Pick and balance groups 1–4 by role from the whole raid, and sort |
+| `/raidnight balance` | Even out the damage of groups 1+2 and 3+4 from the last boss pull, and sort |
 | `/raidnight invite` | Invite players on the list who are not in the raid |
 | `/raidnight stop` | Stop a sort in progress |

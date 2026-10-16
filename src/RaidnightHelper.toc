@@ -19,6 +19,7 @@
 Locales.lua
 Roles.lua
 AutoGroups.lua
+Balance.lua
 RaidnightHelper.lua
 GroupGrid.lua
 BossLayouts.lua
