@@ -7,7 +7,10 @@
 --
 -- In a raid, the players dragged move in the raid too (see ns.MoveInRaid);
 -- everyone else stays put until Sort raid. Names show in class colours with
--- a role icon, and grey without one while the player is not in the raid.
+-- a role icon, and grey without one while the player is not in the raid. A
+-- name in a group shows, in orange, the number of the group the player is in
+-- now when that is another one. Raid members have a lock to click: locked
+-- players never go into groups 1-4 when the raid is sorted (see ns.IsLocked).
 
 local _, ns = ...
 local L = ns.L
@@ -16,10 +19,11 @@ local MAX_GROUPS  = 8
 local GROUP_SIZE  = 5
 local COLUMNS     = 4    -- groups per row
 local POOL_SIZE   = 10   -- slots in the "Not on list" column
-local SLOT_WIDTH  = 104
+local SLOT_WIDTH  = 112
 local SLOT_HEIGHT = 17
 local HEADER      = 16
 local GAP         = 6
+local LOCK_ICON   = "Interface\\LFGFrame\\UI-LFG-ICON-LOCK"
 
 local ROLE_ICONS = {
   TANK   = "Interface\\Icons\\INV_Shield_06",
@@ -30,7 +34,8 @@ local ROLE_ICONS = {
 
 -- groups[g] and pool hold the slot buttons; targets is everything a name can
 -- be dropped on. A slot has .group (nil in the pool), .index and .name, and
--- .raidGroup for a raid member: the group they are in now.
+-- for a raid member .raidGroup (the group they are in now), .member (their
+-- name in the raid) and .locked.
 local grid = { groups = {}, pool = {}, targets = {} }
 
 ---------------------------------------------------------------------------
@@ -42,7 +47,14 @@ local grid = { groups = {}, pool = {}, targets = {} }
 local function ShowName(slot, name, info)
   slot.name = name
   slot.raidGroup = info and info.group
+  slot.member = info and info.name
+  slot.locked = info and info.locked
   slot.text:SetText(name or "")
+  local elsewhere = info and slot.group and info.group ~= slot.group
+  slot.where:SetText(elsewhere and tostring(info.group) or "")
+  slot.lock:SetShown(info ~= nil)
+  slot.lock.icon:SetDesaturated(not slot.locked)
+  slot.lock.icon:SetAlpha(slot.locked and 1 or 0.3) -- faded = unlocked
   local icon = info and ROLE_ICONS[info.role]
   slot.icon:SetTexture(icon)
   slot.icon:SetShown(icon ~= nil)
@@ -173,6 +185,27 @@ local function CreateGhost()
 end
 
 ---------------------------------------------------------------------------
+-- Locks
+---------------------------------------------------------------------------
+
+local function OnLockEnter(self)
+  local slot = self:GetParent()
+  GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+  GameTooltip:SetText(slot.member or "")
+  local tip = slot.locked and L["Locked: Sort raid never puts this player in groups 1-4. Auto unlocks everyone. Click to unlock."]
+    or L["Click to lock: Sort raid will never put this player in groups 1-4."]
+  GameTooltip:AddLine(tip, 1, 1, 1, true)
+  GameTooltip:Show()
+end
+
+local function OnLockClick(self)
+  local slot = self:GetParent()
+  if not slot.member then return end
+  ns.SetLocked(slot.member, not slot.locked)
+  if GameTooltip:IsOwned(self) then OnLockEnter(self) end
+end
+
+---------------------------------------------------------------------------
 -- Frames
 ---------------------------------------------------------------------------
 
@@ -187,9 +220,25 @@ local function NewSlot(parent, group, index)
   slot.icon:SetSize(SLOT_HEIGHT - 3, SLOT_HEIGHT - 3)
   slot.icon:SetPoint("LEFT", 2, 0)
   slot.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92) -- trims the icon's border
+
+  slot.lock = CreateFrame("Button", nil, slot)
+  slot.lock:SetSize(SLOT_HEIGHT - 3, SLOT_HEIGHT - 3)
+  slot.lock:SetPoint("RIGHT", -2, 0)
+  slot.lock.icon = slot.lock:CreateTexture(nil, "ARTWORK")
+  slot.lock.icon:SetAllPoints()
+  slot.lock.icon:SetTexture(LOCK_ICON)
+  slot.lock:SetScript("OnClick", OnLockClick)
+  slot.lock:SetScript("OnEnter", OnLockEnter)
+  slot.lock:SetScript("OnLeave", GameTooltip_Hide)
+  slot.lock:Hide()
+
+  slot.where = slot:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  slot.where:SetPoint("RIGHT", slot.lock, "LEFT", -2, 0)
+  slot.where:SetTextColor(1, 0.5, 0)
+
   slot.text = slot:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   slot.text:SetPoint("LEFT", slot.icon, "RIGHT", 3, 0)
-  slot.text:SetPoint("RIGHT", -4, 0)
+  slot.text:SetPoint("RIGHT", slot.where, "LEFT", -2, 0)
   slot.text:SetJustifyH("LEFT")
   slot.text:SetWordWrap(false)
   slot:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")

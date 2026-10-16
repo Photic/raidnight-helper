@@ -67,6 +67,11 @@ if locale == "deDE" then
   L["Group %d"] = "Gruppe %d"
   L["Not on list"] = "Nicht auf der Liste"
   L["+%d more"] = "+%d weitere"
+  L["Undo"] = "Rückgängig"
+  L["Rejected by the game:"] = "Vom Spiel abgelehnt:"
+  L["Locked players in the way:"] = "Gesperrte Spieler im Weg:"
+  L["Locked: Sort raid never puts this player in groups 1-4. Auto unlocks everyone. Click to unlock."] = "Gesperrt: Raid sortieren setzt diesen Spieler nie in Gruppe 1-4. Auto entsperrt alle. Klicken zum Entsperren."
+  L["Click to lock: Sort raid will never put this player in groups 1-4."] = "Klicken zum Sperren: Raid sortieren setzt diesen Spieler nie in Gruppe 1-4."
 
 elseif locale == "esES" or locale == "esMX" then
   L["%s is in both group %d and %d."] = "%s está en el grupo %d y en el grupo %d."
@@ -123,6 +128,11 @@ elseif locale == "esES" or locale == "esMX" then
   L["Group %d"] = "Grupo %d"
   L["Not on list"] = "Fuera de la lista"
   L["+%d more"] = "+%d más"
+  L["Undo"] = "Deshacer"
+  L["Rejected by the game:"] = "Rechazado por el juego:"
+  L["Locked players in the way:"] = "Jugadores bloqueados que estorban:"
+  L["Locked: Sort raid never puts this player in groups 1-4. Auto unlocks everyone. Click to unlock."] = "Bloqueado: Ordenar banda nunca pone a este jugador en los grupos 1-4. Auto desbloquea a todos. Haz clic para desbloquear."
+  L["Click to lock: Sort raid will never put this player in groups 1-4."] = "Haz clic para bloquear: Ordenar banda nunca pondrá a este jugador en los grupos 1-4."
 
 elseif locale == "frFR" then
   L["%s is in both group %d and %d."] = "%s est à la fois dans le groupe %d et le groupe %d."
@@ -179,6 +189,11 @@ elseif locale == "frFR" then
   L["Group %d"] = "Groupe %d"
   L["Not on list"] = "Hors de la liste"
   L["+%d more"] = "+%d de plus"
+  L["Undo"] = "Annuler"
+  L["Rejected by the game:"] = "Refusés par le jeu :"
+  L["Locked players in the way:"] = "Joueurs verrouillés qui gênent :"
+  L["Locked: Sort raid never puts this player in groups 1-4. Auto unlocks everyone. Click to unlock."] = "Verrouillé : Trier le raid ne place jamais ce joueur dans les groupes 1-4. Auto déverrouille tout le monde. Cliquez pour déverrouiller."
+  L["Click to lock: Sort raid will never put this player in groups 1-4."] = "Cliquez pour verrouiller : Trier le raid ne placera jamais ce joueur dans les groupes 1-4."
 
 elseif locale == "itIT" then
   L["%s is in both group %d and %d."] = "%s è sia nel gruppo %d che nel gruppo %d."
@@ -235,6 +250,11 @@ elseif locale == "itIT" then
   L["Group %d"] = "Gruppo %d"
   L["Not on list"] = "Fuori lista"
   L["+%d more"] = "+%d altri"
+  L["Undo"] = "Annulla"
+  L["Rejected by the game:"] = "Rifiutati dal gioco:"
+  L["Locked players in the way:"] = "Giocatori bloccati d'intralcio:"
+  L["Locked: Sort raid never puts this player in groups 1-4. Auto unlocks everyone. Click to unlock."] = "Bloccato: Ordina incursione non mette mai questo giocatore nei gruppi 1-4. Auto sblocca tutti. Clicca per sbloccare."
+  L["Click to lock: Sort raid will never put this player in groups 1-4."] = "Clicca per bloccare: Ordina incursione non metterà mai questo giocatore nei gruppi 1-4."
 
 elseif locale == "koKR" then
   L["%s is in both group %d and %d."] = "%s 님이 %d파티와 %d파티에 모두 있습니다."
@@ -291,6 +311,11 @@ elseif locale == "koKR" then
   L["Group %d"] = "%d 파티"
   L["Not on list"] = "목록에 없음"
   L["+%d more"] = "+%d명 더"
+  L["Undo"] = "되돌리기"
+  L["Rejected by the game:"] = "게임에서 거부됨:"
+  L["Locked players in the way:"] = "자리를 막고 있는 잠긴 플레이어:"
+  L["Locked: Sort raid never puts this player in groups 1-4. Auto unlocks everyone. Click to unlock."] = "잠김: 공격대 정렬은 이 플레이어를 1-4 파티에 넣지 않습니다. 자동은 모든 잠금을 풉니다. 클릭하면 잠금이 풀립니다."
+  L["Click to lock: Sort raid will never put this player in groups 1-4."] = "클릭하여 잠금: 공격대 정렬이 이 플레이어를 1-4 파티에 넣지 않습니다."
 
 elseif locale == "ptBR" then
   L["%s is in both group %d and %d."] = "%s está no grupo %d e no grupo %d."
@@ -347,6 +372,11 @@ elseif locale == "ptBR" then
   L["Group %d"] = "Grupo %d"
   L["Not on list"] = "Fora da lista"
   L["+%d more"] = "+%d a mais"
+  L["Undo"] = "Desfazer"
+  L["Rejected by the game:"] = "Recusados pelo jogo:"
+  L["Locked players in the way:"] = "Jogadores travados no caminho:"
+  L["Locked: Sort raid never puts this player in groups 1-4. Auto unlocks everyone. Click to unlock."] = "Travado: Ordenar raide nunca coloca este jogador nos grupos 1-4. Auto destrava todos. Clique para destravar."
+  L["Click to lock: Sort raid will never put this player in groups 1-4."] = "Clique para travar: Ordenar raide nunca colocará este jogador nos grupos 1-4."
 
 elseif locale == "ruRU" then
   L["%s is in both group %d and %d."] = "%s указан и в группе %d, и в группе %d."
@@ -403,6 +433,11 @@ elseif locale == "ruRU" then
   L["Group %d"] = "Группа %d"
   L["Not on list"] = "Нет в списке"
   L["+%d more"] = "ещё %d"
+  L["Undo"] = "Отменить"
+  L["Rejected by the game:"] = "Отклонено игрой:"
+  L["Locked players in the way:"] = "Мешают заблокированные игроки:"
+  L["Locked: Sort raid never puts this player in groups 1-4. Auto unlocks everyone. Click to unlock."] = "Заблокирован: «Сортировать» никогда не ставит этого игрока в группы 1-4. «Авто» снимает все блокировки. Нажмите, чтобы разблокировать."
+  L["Click to lock: Sort raid will never put this player in groups 1-4."] = "Нажмите, чтобы заблокировать: «Сортировать» никогда не поставит этого игрока в группы 1-4."
 
 elseif locale == "zhCN" then
   L["%s is in both group %d and %d."] = "%s 同时在第%d小队和第%d小队中。"
@@ -459,6 +494,11 @@ elseif locale == "zhCN" then
   L["Group %d"] = "第%d小队"
   L["Not on list"] = "不在名单中"
   L["+%d more"] = "还有%d人"
+  L["Undo"] = "撤销"
+  L["Rejected by the game:"] = "被游戏拒绝："
+  L["Locked players in the way:"] = "占位的锁定玩家："
+  L["Locked: Sort raid never puts this player in groups 1-4. Auto unlocks everyone. Click to unlock."] = "已锁定：排列团队不会把此玩家放入1-4队。自动会解除所有锁定。点击解锁。"
+  L["Click to lock: Sort raid will never put this player in groups 1-4."] = "点击锁定：排列团队将不会把此玩家放入1-4队。"
 
 elseif locale == "zhTW" then
   L["%s is in both group %d and %d."] = "%s 同時在第%d小隊和第%d小隊中。"
@@ -515,4 +555,9 @@ elseif locale == "zhTW" then
   L["Group %d"] = "第%d小隊"
   L["Not on list"] = "不在名單中"
   L["+%d more"] = "還有%d人"
+  L["Undo"] = "復原"
+  L["Rejected by the game:"] = "被遊戲拒絕："
+  L["Locked players in the way:"] = "佔位的鎖定玩家："
+  L["Locked: Sort raid never puts this player in groups 1-4. Auto unlocks everyone. Click to unlock."] = "已鎖定：排列團隊不會把此玩家放入1-4隊。自動會解除所有鎖定。點擊解鎖。"
+  L["Click to lock: Sort raid will never put this player in groups 1-4."] = "點擊鎖定：排列團隊將不會把此玩家放入1-4隊。"
 end

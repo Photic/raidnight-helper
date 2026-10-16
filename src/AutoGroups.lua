@@ -4,7 +4,9 @@
 -- the raid allows. Within a half, the two groups are balanced the same way.
 -- Damage dealers of the same class are split between the halves as well, as
 -- far as the melee and ranged balance allows: 2 Hunters means 1 per half.
--- Groups 5-8 are left alone, so a bench stays a bench.
+-- Who gets a slot in groups 1-4 is picked from the whole raid (see
+-- ns.AutoLayout); everyone else waits in groups 5-8. Auto then moves as few
+-- players as it can: only the half matters, not the group within it.
 --
 -- 20 players with 2 tanks, 4 healers, 7 melee and 7 ranged come out as:
 --
@@ -14,15 +16,13 @@
 local _, ns = ...
 
 local AUTO_GROUPS = 4
+local MAX_GROUPS  = 8
 local GROUP_SIZE  = 5
 local HALF        = { 1, 1, 2, 2 }  -- the half each of groups 1-4 belongs to
 local PER_HALF    = { TANK = 1, HEALER = 2 }
 local DAMAGE      = { MELEE = true, RANGED = true }
 
 ns.AUTO_GROUPS = AUTO_GROUPS
-
--- Midnight can return "secret values" for some unit data; we leave those alone.
-local issecret = issecretvalue or function() return false end
 
 -- Gives each player ({ role = r, class = c }) a .target in groups 1-4, around
 -- the fixed players already there ({ group = g, role = r, class = c }). A
@@ -68,10 +68,18 @@ function ns.BalanceGroups(fixed, players)
     end
   end
 
+  -- Is a half short of the role, with room to take one more?
+  local function Missing(role)
+    for g = 1, AUTO_GROUPS do
+      if size[g] < GROUP_SIZE and Count(HALF[g], role) < PER_HALF[role] then return true end
+    end
+    return false
+  end
+
   -- 1. Tanks and healers a half is missing: 1 tank and 2 healers each.
   for _, role in ipairs({ "TANK", "HEALER" }) do
     local p = NextOf(role)
-    while p and (Count(1, role) < PER_HALF[role] or Count(2, role) < PER_HALF[role]) do
+    while p and Missing(role) do
       Place(p)
       p = NextOf(role)
     end
@@ -137,30 +145,175 @@ function ns.BalanceGroups(fixed, players)
   while Swap() do end
 end
 
--- A layout for the whole raid as { [group] = { names } }: groups 1-4
--- balanced, groups 5-8 as they are. Also returns the names whose role was
--- guessed from the class.
-function ns.AutoLayout()
-  local players, groups, guessed = {}, {}, {}
-  for i = 1, GetNumGroupMembers() or 0 do
-    local name, _, subgroup = GetRaidRosterInfo(i)
-    if name and subgroup and not issecret(name) and not issecret(subgroup) then
-      if subgroup <= AUTO_GROUPS then
-        local role, guess = ns.UnitRole("raid" .. i)
-        local _, class = UnitClass("raid" .. i)
-        players[#players + 1] = { name = name, role = role, class = class }
-        if guess then guessed[#guessed + 1] = name end
-      else
-        groups[subgroup] = groups[subgroup] or {}
-        table.insert(groups[subgroup], name)
+-- Moves as few players as it can, for the players BalanceGroups gave a
+-- .target, from the .group they are in now. Only the half counts, so two
+-- players in opposite halves trade halves, or one moves over to the smaller
+-- half, when that saves a move and leaves no role, and no class of damage
+-- dealers, less evenly split between the halves. Within their half, players
+-- keep their own group, and the others fill the free slots. Sets .target.
+local function KeepInPlace(players)
+  local half, size, count = {}, { 0, 0 }, {}
+  local function Keys(p)
+    if DAMAGE[p.role] and p.class then return { p.role, "class:" .. p.class } end
+    return { p.role }
+  end
+  local function Add(p, n)
+    local h = half[p]
+    size[h] = size[h] + n
+    for _, key in ipairs(Keys(p)) do
+      count[key] = count[key] or { 0, 0 }
+      count[key][h] = count[key][h] + n
+    end
+  end
+  local function Flip(p)
+    Add(p, -1)
+    half[p] = 3 - half[p]
+    Add(p, 1)
+  end
+  for _, p in ipairs(players) do
+    half[p] = HALF[p.target]
+    Add(p, 1)
+  end
+
+  local function Stays(p, h) return p.group <= AUTO_GROUPS and HALF[p.group] == h end
+  -- Moves saved when the players in list go over to the other half.
+  local function Saved(list)
+    local n = 0
+    for _, p in ipairs(list) do
+      if Stays(p, 3 - half[p]) then n = n + 1 end
+      if Stays(p, half[p]) then n = n - 1 end
+    end
+    return n
+  end
+  -- Sends the players in list over to the other half, unless that leaves a
+  -- role, a class or the half sizes less even, or a half over 10.
+  local function TryFlip(list)
+    local before = {}
+    for _, p in ipairs(list) do
+      for _, key in ipairs(Keys(p)) do before[key] = math.abs(count[key][1] - count[key][2]) end
+    end
+    local sizes = math.abs(size[1] - size[2])
+    for _, p in ipairs(list) do Flip(p) end
+    local even = math.abs(size[1] - size[2]) <= sizes
+      and size[1] <= 2 * GROUP_SIZE and size[2] <= 2 * GROUP_SIZE
+    for key, n in pairs(before) do
+      if math.abs(count[key][1] - count[key][2]) > n then even = false end
+    end
+    if not even then
+      for _, p in ipairs(list) do Flip(p) end
+    end
+    return even
+  end
+
+  -- Each flip saves a move, so this ends.
+  local better = true
+  while better do
+    better = false
+    for _, p in ipairs(players) do
+      for _, q in ipairs(players) do
+        if half[p] ~= half[q] and Saved({ p, q }) > 0 and TryFlip({ p, q }) then better = true end
       end
+      if Saved({ p }) > 0 and TryFlip({ p }) then better = true end
     end
   end
 
-  ns.BalanceGroups({}, players)
+  local inGroup, coming = { 0, 0, 0, 0 }, {}
   for _, p in ipairs(players) do
-    groups[p.target] = groups[p.target] or {}
-    table.insert(groups[p.target], p.name)
+    if Stays(p, half[p]) then
+      p.target = p.group
+      inGroup[p.group] = inGroup[p.group] + 1
+    else
+      coming[#coming + 1] = p
+    end
+  end
+  for _, p in ipairs(coming) do
+    local best
+    for g = 1, AUTO_GROUPS do
+      if HALF[g] == half[p] and inGroup[g] < GROUP_SIZE and (not best or inGroup[g] < inGroup[best]) then
+        best = g
+      end
+    end
+    p.target = best
+    inGroup[best] = inGroup[best] + 1
+  end
+end
+
+-- A layout for the whole raid as { [group] = { names } }, from the raid
+-- members ({ index, name, group, desired }, desired being the group the list
+-- puts them in). Groups 1-4 take the players the list puts there, and the
+-- slots left go to the others by role, those in groups 1-4 now first; then
+-- everyone in groups 1-4 is balanced together, moving as few players as it
+-- can (see KeepInPlace). Players the list puts in
+-- groups 5-8 stay out. Everyone without a slot waits in groups 5-8: in the
+-- group they are in when it is one of those, else in their group on the list
+-- or the first group with room. Also returns the names in groups 1-4 whose
+-- role was guessed from the class.
+function ns.AutoLayout(members)
+  local groups = {}
+  local function Room(g) return #(groups[g] or {}) < GROUP_SIZE end
+  local function Put(g, name)
+    groups[g] = groups[g] or {}
+    table.insert(groups[g], name)
+  end
+
+  local listed, others, later, bench = {}, {}, {}, {}
+  for _, m in ipairs(members) do
+    local role, guess = ns.UnitRole("raid" .. m.index)
+    local _, class = UnitClass("raid" .. m.index)
+    local p = { name = m.name, group = m.group, desired = m.desired, role = role, class = class, guess = guess }
+    if m.desired and m.desired <= AUTO_GROUPS then
+      listed[#listed + 1] = p
+    elseif m.desired then
+      bench[#bench + 1] = p
+    elseif m.group <= AUTO_GROUPS then
+      others[#others + 1] = p
+    else
+      later[#later + 1] = p
+    end
+  end
+  for _, p in ipairs(later) do others[#others + 1] = p end
+
+  -- Who plays: the list's players, balanced on their own, and then as many
+  -- of the others as there is room for, picked by role around them.
+  ns.BalanceGroups({}, listed)
+  local fixed = {}
+  for _, p in ipairs(listed) do
+    if p.target then fixed[#fixed + 1] = { group = p.target, role = p.role, class = p.class } end
+  end
+  ns.BalanceGroups(fixed, others)
+  local playing = {}
+  for _, list in ipairs({ listed, others }) do
+    for _, p in ipairs(list) do
+      if p.target then playing[#playing + 1] = p else bench[#bench + 1] = p end
+      p.target = nil
+    end
+  end
+
+  -- Then everyone who plays is balanced together, moving as few as it can.
+  ns.BalanceGroups({}, playing)
+  local placed, guessed = {}, {}
+  for _, p in ipairs(playing) do
+    if p.target then placed[#placed + 1] = p else bench[#bench + 1] = p end
+  end
+  KeepInPlace(placed)
+  for _, p in ipairs(placed) do
+    Put(p.target, p.name)
+    if p.guess then guessed[#guessed + 1] = p.name end
+  end
+
+  local function FirstRoom(from)
+    for g = from, MAX_GROUPS do
+      if Room(g) then return g end
+    end
+  end
+  local moving = {}
+  for _, p in ipairs(bench) do
+    if p.group > AUTO_GROUPS then Put(p.group, p.name) else moving[#moving + 1] = p end
+  end
+  for _, p in ipairs(moving) do
+    local g = p.desired
+    if not (g and g > AUTO_GROUPS and Room(g)) then g = FirstRoom(AUTO_GROUPS + 1) or FirstRoom(1) end
+    if g then Put(g, p.name) end
   end
   return groups, guessed
 end

@@ -259,6 +259,29 @@ function ns.ParseInput(raw)
 end
 
 ---------------------------------------------------------------------------
+-- Locks
+---------------------------------------------------------------------------
+
+-- Locked players never go into groups 1-4 (see ApplyLocks); only a drag in
+-- the grid moves them there. While there is a list, players who are not on
+-- it start locked and the others unlocked; a click on the lock decides for
+-- the rest of the raid. Auto lets go of all locks. Kept by name as in the
+-- raid, and forgotten when you leave the raid: [name] = true or false.
+local locks = {}
+
+function ns.IsLocked(name, onList, hasList)
+  local locked = locks[name]
+  if locked == nil then return hasList and not onList end
+  return locked
+end
+
+function ns.SetLocked(name, locked)
+  locks[name] = locked
+  ns.RefreshGrid()
+  ns.SchedulePreview()
+end
+
+---------------------------------------------------------------------------
 -- Raid
 ---------------------------------------------------------------------------
 
@@ -310,9 +333,10 @@ end
 
 -- Matches the list to the raid members. Sets m.desired on those it finds.
 -- res.missing has the names on the list that are not in the raid, and
--- res.missingEntries their entries.
+-- res.ambiguous those that match more than one player. res.held has the
+-- entries of both: their slots are kept for them.
 local function MatchPlan(plan, members)
-  local res = { missing = {}, missingEntries = {}, ambiguous = {}, matched = 0 }
+  local res = { missing = {}, ambiguous = {}, held = {}, matched = 0 }
   for _, e in ipairs(plan.entries) do
     local cands = Candidates(members, e, "base")
     if #cands == 0 then cands = Candidates(members, e, "fold") end
@@ -322,28 +346,57 @@ local function MatchPlan(plan, members)
       res.matched = res.matched + 1
     elseif #cands == 0 then
       table.insert(res.missing, e.name)
-      table.insert(res.missingEntries, e)
+      table.insert(res.held, e)
     else
       table.insert(res.ambiguous, e.name)
+      table.insert(res.held, e)
     end
   end
   return res
 end
 
+-- Locked players never go into groups 1-4. One who stands in their own group
+-- stays there; one who is to go to groups 5-8 is sorted like anyone else.
+-- The others count as not on the list, so they stay where they are, or leave
+-- groups 1-4 for groups 5-8 when their slot is needed (see NextMove). The
+-- players a drag moves (moves, names as on the list) are not held by a lock.
+local function ApplyLocks(members, plan, moves)
+  local hasList = plan.count > 0
+  for _, m in ipairs(members) do
+    local dragged = moves and m.entry and moves[m.entry.name]
+    if not dragged and ns.IsLocked(m.name, m.entry ~= nil, hasList) then
+      m.locked = true
+      if m.desired and m.desired <= ns.AUTO_GROUPS and m.desired ~= m.group then m.desired = nil end
+    end
+  end
+end
+
+-- Before the layout takes in players who are not on the list, their locks
+-- are set by name, so they stay locked once they are on it.
+local function KeepLocks(members)
+  for _, m in ipairs(members) do
+    if m.locked and locks[m.name] == nil then locks[m.name] = true end
+  end
+end
+
 -- For the group grid: the names on the list that are in the raid
 -- ({ [name] = info }) and the raid members who are not on the list
--- ({ info, ... }). info is { name, group, class, role }: the group they are
--- in now, UnitClass's file name ("" when unknown) and the role from
--- Roles.lua. Both are empty outside a raid.
+-- ({ info, ... }). info is { name, group, class, role, locked }: the group
+-- they are in now, UnitClass's file name ("" when unknown), the role from
+-- Roles.lua and whether they are locked. Both are empty outside a raid.
 function ns.MatchRaid(plan)
   local found, extras = {}, {}
   if not IsInRaid() then return found, extras end
   local members = ReadRoster()
   MatchPlan(plan, members)
+  local hasList = plan.count > 0
   for _, m in ipairs(members) do
     local unit = "raid" .. m.index
     local _, class = UnitClass(unit)
-    local info = { name = m.name, group = m.group, class = class or "", role = ns.UnitRole(unit) }
+    local info = {
+      name = m.name, group = m.group, class = class or "", role = ns.UnitRole(unit),
+      locked = ns.IsLocked(m.name, m.entry ~= nil, hasList),
+    }
     if m.entry then
       found[m.entry.name] = info
     else
@@ -353,9 +406,9 @@ function ns.MatchRaid(plan)
   return found, extras
 end
 
--- Adds the players on the list who are not in the raid to groups
--- ({ [group] = { names } }): each to their own group, or when that is full,
--- to the first group with room.
+-- Adds the players on the list who are not in the raid, and the names that
+-- match more than one player, to groups ({ [group] = { names } }): each to
+-- their own group, or when that is full, to the first group with room.
 local function AddMissing(groups, res)
   local function Room(g) return #(groups[g] or {}) < GROUP_SIZE end
   local function Put(g, name)
@@ -363,7 +416,7 @@ local function AddMissing(groups, res)
     table.insert(groups[g], name)
   end
   local displaced = {}
-  for _, e in ipairs(res.missingEntries) do
+  for _, e in ipairs(res.held) do
     if Room(e.group) then Put(e.group, e.name) else displaced[#displaced + 1] = e.name end
   end
   for _, name in ipairs(displaced) do
@@ -375,13 +428,14 @@ end
 
 -- Gives players who are not on the list a group in the open slots of groups
 -- 1-4, by role and class (see AutoGroups.lua). Players on the list keep their
--- groups, and slots of list players who are not in the raid are held for
--- them. Among players of the same role, those already in groups 1-4 get a
--- slot first; anyone without a slot is left for the free groups. Returns
+-- groups, and slots of list players who are not in the raid, or whose name
+-- matches more than one player, are held for them. Among players of the
+-- same role, those already in groups 1-4 get a slot first; anyone without a
+-- slot is left for the free groups. Locked players get none. Returns
 -- { [name] = group }.
 local function PlaceExtras(members, res)
   local fixed, extras, far = {}, {}, {}
-  for _, e in ipairs(res.missingEntries) do
+  for _, e in ipairs(res.held) do
     if e.group <= ns.AUTO_GROUPS then fixed[#fixed + 1] = { group = e.group } end
   end
   for _, m in ipairs(members) do
@@ -389,7 +443,7 @@ local function PlaceExtras(members, res)
     local _, class = UnitClass("raid" .. m.index)
     if m.desired then
       if m.desired <= ns.AUTO_GROUPS then fixed[#fixed + 1] = { group = m.desired, role = role, class = class } end
-    else
+    elseif not m.locked then
       local list = m.group <= ns.AUTO_GROUPS and extras or far
       list[#list + 1] = { name = m.name, role = role, class = class }
     end
@@ -408,35 +462,76 @@ local function ApplyTargets(members, targets)
   end
 end
 
+-- Locked players never go into groups 1-4.
+local function CanGo(p, g)
+  return not (p.locked and g <= ns.AUTO_GROUPS)
+end
+
 -- Finds the next move. Each move puts at least one player on the list in
--- their final group (players already in place are never moved again), so it ends.
-local function NextMove(plan, members, counts, moveExtras)
+-- their final group, or makes room for one (players already in place are
+-- never moved again), so it ends. Two players who are to go to each other's
+-- group swap first, as one move places both. only, when set, limits the
+-- players to place to those names (as on the list). Players the game would
+-- not move (.skipped) stay where they are.
+local function NextMove(plan, members, counts, moveExtras, only)
+  local wrong = {}
   for _, m in ipairs(members) do
-    local target = m.desired
-    if target and m.group ~= target then
-      if (counts[target] or 0) < GROUP_SIZE then
-        return "set", m, target
-      end
-      local partner
-      for _, o in ipairs(members) do
-        if o.group == target and o.desired ~= target then
-          if o.desired == m.group then partner = o break end
-          partner = partner or o
-        end
-      end
-      if partner then return "swap", m, partner end
+    if m.desired and m.group ~= m.desired and not m.skipped
+      and (not only or (m.entry and only[m.entry.name])) then
+      wrong[#wrong + 1] = m
     end
   end
 
+  -- A group in 5-8 with room for a locked player: their own group on the
+  -- list, else a group the list doesn't use, else any.
+  local function Bench(p)
+    local own = p.desired
+    if own and own > ns.AUTO_GROUPS and (counts[own] or 0) < GROUP_SIZE then return own end
+    for pass = 1, 2 do
+      for g = ns.AUTO_GROUPS + 1, MAX_GROUPS do
+        if (counts[g] or 0) < GROUP_SIZE and (pass == 2 or not plan.used[g]) then return g end
+      end
+    end
+  end
+
+  -- 1. Two players who are to go to each other's group swap places.
+  for _, m in ipairs(wrong) do
+    for _, o in ipairs(members) do
+      if o.group == m.desired and o.desired == m.group and not o.skipped then
+        return "swap", m, o
+      end
+    end
+  end
+
+  -- 2. A player whose group has room moves there.
+  for _, m in ipairs(wrong) do
+    if (counts[m.desired] or 0) < GROUP_SIZE then return "set", m, m.desired end
+  end
+
+  -- 3. A player whose group is full swaps with someone there who is not to
+  -- stay. A locked player there who can't take the mover's place in groups
+  -- 1-4 leaves for groups 5-8 first.
+  for _, m in ipairs(wrong) do
+    local locked
+    for _, o in ipairs(members) do
+      if o.group == m.desired and o.desired ~= m.desired and not o.skipped then
+        if CanGo(o, m.group) then return "swap", m, o end
+        locked = locked or o
+      end
+    end
+    local bench = locked and Bench(locked)
+    if bench then return "set", locked, bench end
+  end
+
+  -- 4. Players who are not on the list leave the groups it uses.
   if moveExtras then
     for _, m in ipairs(members) do
-      if not m.desired and plan.used[m.group] then
+      if not m.desired and not m.skipped and plan.used[m.group] then
         for g = 1, MAX_GROUPS do
-          if not plan.used[g] and (counts[g] or 0) < GROUP_SIZE then
+          if not plan.used[g] and (counts[g] or 0) < GROUP_SIZE and CanGo(m, g) then
             return "set", m, g
           end
         end
-        break -- no free group; the rest stay put
       end
     end
   end
@@ -459,6 +554,28 @@ local function AppendMissing(lines, res)
   end
 end
 
+-- Once nothing more can be moved: the players the game would not move, and
+-- the locked players in a group that someone on the list still waits for.
+local function AppendStuck(lines, members)
+  local rejected, waiting, inWay = {}, {}, {}
+  for _, m in ipairs(members) do
+    if m.skipped and m.group ~= m.desired then
+      rejected[#rejected + 1] = m.name
+    elseif m.desired and m.group ~= m.desired then
+      waiting[m.desired] = true
+    end
+  end
+  for _, m in ipairs(members) do
+    if m.locked and waiting[m.group] and m.desired ~= m.group then inWay[#inWay + 1] = m.name end
+  end
+  if #rejected > 0 then
+    lines[#lines + 1] = "|cffffd100" .. L["Rejected by the game:"] .. "|r " .. table.concat(rejected, ", ")
+  end
+  if #inWay > 0 then
+    lines[#lines + 1] = "|cffffd100" .. L["Locked players in the way:"] .. "|r " .. table.concat(inWay, ", ")
+  end
+end
+
 local function CanArrange()
   if not IsInRaid() then return false, L["You are not in a raid."] end
   if not (UnitIsGroupLeader("player") or UnitIsGroupAssistant("player")) then
@@ -476,7 +593,7 @@ function ns.SetStatus(text)
   if ns.statusText then ns.statusText:SetText(text) end
 end
 
-local runner = { active = false, timeoutToken = 0, eventToken = 0 }
+local runner = { active = false, timeoutToken = 0, eventToken = 0, id = 0 }
 
 function ns.IsRunning() return runner.active end
 
@@ -504,12 +621,14 @@ function ns.BuildPreview(text)
   else
     local members, counts = ReadRoster()
     local res = MatchPlan(plan, members)
+    ApplyLocks(members, plan)
     local moveExtras = GetDB().moveExtras
     if moveExtras then ApplyTargets(members, PlaceExtras(members, res)) end
-    if not NextMove(plan, members, counts, moveExtras) then
+    local wrong = CountWrong(members)
+    local canMove = NextMove(plan, members, counts, moveExtras) ~= nil
+    if wrong == 0 and not canMove then
       lines[#lines + 1] = "|cff55ff55" .. L["The raid matches the layout."] .. "|r"
     else
-      local wrong = CountWrong(members)
       if wrong > 0 then
         lines[#lines + 1] = L["%d player(s) in the wrong group."]:format(wrong)
       else
@@ -517,6 +636,7 @@ function ns.BuildPreview(text)
       end
       local ok, err = CanArrange()
       if not ok then lines[#lines + 1] = "|cffff5555" .. err .. "|r" end
+      if not canMove then AppendStuck(lines, members) end
     end
     AppendMissing(lines, res)
   end
@@ -561,10 +681,16 @@ local function Summary(plan, res, members)
   local lines = {}
   local wrong = CountWrong(members)
   if wrong == 0 then
-    lines[1] = "|cff55ff55" .. L["Done!"] .. "|r " .. L["%d of %d players are in the right group."]:format(res.matched, plan.count)
+    -- Locked players kept out of their group in 1-4 are not in the right one.
+    local right = res.matched
+    for _, m in ipairs(members) do
+      if m.locked and m.entry and m.group ~= m.entry.group then right = right - 1 end
+    end
+    lines[1] = "|cff55ff55" .. L["Done!"] .. "|r " .. L["%d of %d players are in the right group."]:format(right, plan.count)
   else
     lines[1] = "|cffff5555" .. L["%d player(s) could not be moved."]:format(wrong) .. "|r"
   end
+  AppendStuck(lines, members)
   AppendMissing(lines, res)
   return table.concat(lines, "\n")
 end
@@ -583,15 +709,47 @@ function ns.SetLayout(text)
   ns.SchedulePreview()
 end
 
+-- What Undo brings back: the layout and the locks from before Auto or
+-- filling open slots last replaced the layout, and with auto-save on, the
+-- selected boss's saved layout from then.
+local undo, undoButton
+
+local function UpdateUndo()
+  if undoButton then undoButton:SetEnabled(undo ~= nil) end
+end
+
+local function Remember()
+  undo = { text = GetDB().text, locks = {} }
+  for name, locked in pairs(locks) do undo.locks[name] = locked end
+  if GetDB().autoSave then undo.boss, undo.layout = ns.SelectedBossLayout() end
+  UpdateUndo()
+end
+
+-- The raid stays as it is until Sort raid.
+function ns.Undo()
+  if not undo then return end
+  if runner.active then Stop() end
+  local u = undo
+  undo = nil
+  wipe(locks)
+  for name, locked in pairs(u.locks) do locks[name] = locked end
+  if u.boss then ns.RestoreBossLayout(u.boss, u.layout) end
+  ns.SetLayout(u.text)
+  UpdateUndo()
+end
+
 -- After Auto, or when players who are not on the list got a group, the layout
 -- takes the raid as it now is, and with auto-save on, the selected boss
--- keeps it. Players on the list who are not in the raid stay on it.
-local function KeepResult(res)
+-- keeps it. Players on the list who are not in the raid, or whose name
+-- matches more than one player, stay on it, and locked players stay locked.
+local function KeepResult(res, members)
   local groups = ns.RaidGroups()
   if not groups then return end
   AddMissing(groups, res)
   local text = ns.FormatLayout(groups)
   if text == "" then return end
+  if not runner.auto and text ~= GetDB().text then Remember() end
+  KeepLocks(members)
   SetLayoutText(text)
   if GetDB().autoSave then ns.SaveToSelectedBoss(text) end
 end
@@ -614,6 +772,33 @@ local function MoveLanded(p)
     end
   end
   return true
+end
+
+-- Matches the layout to the raid members, then the names moved from the grid
+-- that are no longer on it, and applies the locks.
+local function MatchRunner(members)
+  local res = MatchPlan(runner.plan, members)
+  local onList, off = {}, {}
+  for _, e in ipairs(runner.plan.entries) do onList[e.name] = true end
+  for name, g in pairs(runner.moves) do
+    if not onList[name] then
+      off[g] = off[g] or {}
+      table.insert(off[g], name)
+    end
+  end
+  if next(off) then MatchPlan(ns.ParseText(ns.FormatLayout(off)), members) end
+  ApplyLocks(members, runner.plan, runner.moves)
+  return res
+end
+
+-- Takes on moves from the grid ({ [name] = group }, names as on the list).
+-- The players moved are not held by their lock, and in a sort for the grid
+-- they are the only ones placed.
+local function AddMoves(moves)
+  for name, g in pairs(moves) do
+    runner.moves[name] = g
+    if runner.only then runner.only[name] = true end
+  end
 end
 
 -- One step: wait for the previous move to land, then find the next one.
@@ -649,17 +834,19 @@ function ns.Step(fromTimeout)
       if runner.failures >= MAX_FAILURES then
         return Stop("|cffff5555" .. L["Could not move %s – the game rejected the move."]:format(p.name) .. "|r")
       end
+      runner.skipped[p.name] = true -- stays put; the sort goes on with the rest
     else
       return ArmTimeout() -- other raid changes; keep waiting
     end
   end
 
   local members, counts = ReadRoster()
-  local res = MatchPlan(runner.plan, members)
+  local res = MatchRunner(members)
   if runner.targets then ApplyTargets(members, runner.targets) end
-  local op, a, b = NextMove(runner.plan, members, counts, runner.moveExtras)
+  for _, m in ipairs(members) do m.skipped = runner.skipped[m.name] end
+  local op, a, b = NextMove(runner.plan, members, counts, runner.moveExtras, runner.only)
   if not op then
-    if (runner.auto or runner.placed) and CountWrong(members) == 0 then KeepResult(res) end
+    if (runner.auto or runner.placed) and CountWrong(members) == 0 then KeepResult(res, members) end
     if runner.quiet then
       Stop()
       return ns.SchedulePreview()
@@ -681,10 +868,12 @@ function ns.Step(fromTimeout)
   ArmTimeout()
 end
 
--- auto is true when the layout came from Auto. quiet is true for a move from
--- the grid: only the players in text are placed, and nothing goes to chat.
-function ns.Apply(text, auto, quiet)
+-- auto is true when the layout came from Auto. moves is set for a move from
+-- the grid ({ [name] = group }, names as on the list): only those players
+-- are placed, and nothing goes to chat.
+function ns.Apply(text, auto, moves)
   if runner.active then Stop() end
+  local quiet = moves ~= nil
 
   local plan = ns.ParseInput(text)
   if plan.empty then
@@ -704,23 +893,28 @@ function ns.Apply(text, auto, quiet)
     return false
   end
 
+  runner.id = runner.id + 1
+  local id = runner.id
   runner.active = true
   runner.plan = plan
   runner.auto = auto
   runner.quiet = quiet
   runner.moveExtras = GetDB().moveExtras and not quiet
+  runner.moves, runner.only = {}, quiet and {} or nil
+  AddMoves(moves or {})
   runner.targets, runner.placed = nil, false
   runner.steps, runner.failures, runner.pending = 0, 0, nil
+  runner.skipped = {}
   runner.waitingCombat = false
 
   -- Players who are not on the list are placed by role, so specs come first.
   -- Auto has just checked them.
   local function Start()
-    if not runner.active or runner.plan ~= plan then return end
+    if not runner.active or runner.id ~= id then return end
     runner.checking = false
     if runner.moveExtras then
       local members = ReadRoster()
-      local res = MatchPlan(plan, members)
+      local res = MatchRunner(members)
       runner.targets = PlaceExtras(members, res)
       runner.placed = next(runner.targets) ~= nil
     end
@@ -737,22 +931,24 @@ function ns.StopSorting()
 end
 
 -- Moves players in the raid for the grid: { [name] = group }, names as on the
--- list. Where a group is full, someone in it swaps places, preferring a
--- player who is to go where the mover came from. Outside a raid it does
--- nothing.
+-- list, locked or not. The layout has the moves already. Where a group is
+-- full, someone in it who is not in their planned group swaps places,
+-- preferring a player who is to go where the mover came from. A sort in
+-- progress takes the moves on, so moves made one after another wait for each
+-- other. Outside a raid it does nothing.
 function ns.MoveInRaid(moves)
-  if not IsInRaid() then return end
-  local groups = {}
-  for name, g in pairs(moves) do
-    groups[g] = groups[g] or {}
-    table.insert(groups[g], name)
+  if not IsInRaid() or next(moves) == nil then return end
+  if runner.active then
+    runner.plan = ns.ParseInput(GetDB().text)
+    AddMoves(moves)
+    return
   end
-  local text = ns.FormatLayout(groups)
-  if text ~= "" then ns.Apply(text, false, true) end
+  ns.Apply(GetDB().text, false, moves)
 end
 
--- Balances groups 1-4 by role (see AutoGroups.lua), makes the result the
--- layout and sorts the raid by it.
+-- Balances groups 1-4 by role with players from the whole raid (see
+-- AutoGroups.lua), makes the result the layout and sorts the raid by it.
+-- Auto lets go of all locks.
 function ns.Auto()
   if runner.active then Stop() end
   local ok, err = CanArrange()
@@ -763,10 +959,14 @@ function ns.Auto()
     return
   end
   ns.CheckSpecs(function()
-    local groups, guessed = ns.AutoLayout()
+    local members = ReadRoster()
+    local res = MatchPlan(ns.ParseInput(GetDB().text), members)
+    local groups, guessed = ns.AutoLayout(members)
     -- Players on the list who are not in the raid stay on it.
-    AddMissing(groups, MatchPlan(ns.ParseInput(GetDB().text), ReadRoster()))
+    AddMissing(groups, res)
     local text = ns.FormatLayout(groups)
+    Remember()
+    wipe(locks)
     SetLayoutText(text)
     if #guessed > 0 then
       Print(L["Spec guessed from class: %s"]:format(table.concat(guessed, ", ")))
@@ -935,6 +1135,11 @@ function ns.CreateUI()
     eb:SetFocus()
   end)
 
+  undoButton = MakeButton(f, L["Undo"], 70)
+  undoButton:SetPoint("LEFT", clear, "RIGHT", 6, 0)
+  undoButton:SetScript("OnClick", ns.Undo)
+  UpdateUndo()
+
   f:SetScript("OnShow", function()
     ns.UpdatePreview()
     if GetDB().text == "" then eb:SetFocus() end
@@ -965,6 +1170,7 @@ function ns.OnEvent(event, arg1)
       DB = RaidnightHelperDB
     end
   elseif event == "GROUP_ROSTER_UPDATE" then
+    if not IsInRaid() then wipe(locks) end -- locks last for one raid
     ns.RefreshGrid()
     if runner.active then
       runner.eventToken = runner.eventToken + 1

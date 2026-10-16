@@ -231,6 +231,19 @@ function ns.SaveToSelectedBoss(text)
   return true
 end
 
+-- The selected boss's journal ID and its saved layout (nil when it has
+-- none), so Undo can put the layout back.
+function ns.SelectedBossLayout()
+  local boss = SelectedBoss()
+  if boss then return boss.id, Layouts()[boss.id] end
+end
+
+-- Puts back a boss's saved layout from ns.SelectedBossLayout; nil removes it.
+function ns.RestoreBossLayout(id, layout)
+  Layouts()[id] = layout
+  if bar.row then UpdateButtons() end
+end
+
 StaticPopupDialogs.RAIDNIGHT_DELETE_LAYOUT = {
   text = L["Delete the saved layout for %s?"],
   button1 = YES,
