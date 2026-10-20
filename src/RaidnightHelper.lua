@@ -5,8 +5,8 @@
 -- Input can be plain text or the same text base64-encoded with the prefix
 -- "RS1:" (UTF-8). The text format is:
 --
---   Group 1: Adelie, Goatjugs, Hoolyhayat, Kitchlol, Meilian
---   Group 2: Gothmog, Hadier, Májestíc, Pepì, Sectorclear
+--   Group 1: Brannoc, Elowyn, Fenwick, Isolde, Torvald
+--   Group 2: Ashlyn, Corvain, Dúnmir, Ravéna, Thessaly
 --   ...
 --
 -- Names can also go one per line under a "Group N" line, and "Gruppe", "G1",
@@ -88,7 +88,7 @@ end
 -- Names
 ---------------------------------------------------------------------------
 
--- Folds accents (U+00C0-U+00FF) to ASCII, so "Majestic" can match "Májestíc"
+-- Folds accents (U+00C0-U+00FF) to ASCII, so "Ravena" can match "Ravéna"
 -- when the website wrote the name without accents.
 local FOLD = {}
 do
