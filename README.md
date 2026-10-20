@@ -18,7 +18,7 @@ Paste a group layout from the website and the raid sorts itself into the planned
 - **Fill open slots with players not on the list** (on by default): players on the list keep their groups, and unlocked players who are not on it take the open slots in groups 1–4 by role and class, with the same rules as Auto. Slots of list players who are not in the raid, or whose name matches more than one player, stay free for them; anyone left over goes to the free groups. Afterwards the layout shows the raid as it now is, with the players who are not in the raid still on the list, and with auto-save on, the selected boss keeps it.
 - **Undo** brings back the layout, the locks and, with auto-save on, the boss's saved layout from before Auto, Balance or filling open slots last changed them. The raid stays as it is until **Sort raid**.
 - **Invite missing** invites everyone on the list who is not in the raid yet.
-- Names match regardless of case and accents, so `Majestic` finds `Májestíc`. Write `Name-Realm` when two players share a name.
+- Names match regardless of case and accents, so `Ravena` finds `Ravéna`. Write `Name-Realm` when two players share a name.
 - Requires raid leader or assistant to move players.
 
 #### Auto
@@ -56,8 +56,8 @@ A row of boss icons at the top of the window shows the bosses of the current rai
 #### Text format
 
 ```
-Group 1: Adelie, Goatjugs, Hoolyhayat, Kitchlol, Meilian
-Group 2: Gothmog, Hadier, Májestíc, Pepì, Sectorclear
+Group 1: Brannoc, Elowyn, Fenwick, Isolde, Torvald
+Group 2: Ashlyn, Corvain, Dúnmir, Ravéna, Thessaly
 ```
 
 Names can also go one per line under a `Group N` line, and `Gruppe`, `G1` and `1.` work as group headers too.
