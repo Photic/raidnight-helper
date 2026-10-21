@@ -1,4 +1,4 @@
-**Raidnight Helper** is the in-game companion addon for the Raidnight website. It is built to grow: each tool for raid night lives in the same addon.
+**Raidnight Helper** is the in-game companion addon for the [Raidnight](https://raidnight.io/) website. It is built to grow: each tool for raid night lives in the same addon.
 
 The in-game interface follows the language of the game client: English, German, French, Spanish, Italian, Portuguese, Russian, Korean and Chinese (Simplified and Traditional). Text without a translation shows in English.
 

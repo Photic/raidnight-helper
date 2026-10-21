@@ -811,7 +811,8 @@ function ns.Step(fromTimeout)
   local ok, err = CanArrange()
   if not ok then return Stop("|cffff5555" .. err .. "|r") end
 
-  if InCombatLockdown() then
+  -- A dead player is out of combat while the raid still fights the boss.
+  if InCombatLockdown() or IsEncounterInProgress() then
     if not runner.waitingCombat then
       runner.waitingCombat = true
       ns.SetStatus(L["In combat – sorting continues once combat ends."])
@@ -1281,7 +1282,7 @@ function ns.OnEvent(event, arg1)
     else
       ns.SchedulePreview()
     end
-  elseif event == "PLAYER_REGEN_ENABLED" then
+  elseif event == "PLAYER_REGEN_ENABLED" or event == "ENCOUNTER_END" then
     if runner.active and runner.waitingCombat then
       ns.Step()
     else
@@ -1297,6 +1298,7 @@ events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("GROUP_ROSTER_UPDATE")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
 events:RegisterEvent("PLAYER_REGEN_DISABLED")
+events:RegisterEvent("ENCOUNTER_END")
 events:SetScript("OnEvent", function(_, event, ...) ns.OnEvent(event, ...) end)
 
 SLASH_RAIDNIGHT1 = "/raidnight"

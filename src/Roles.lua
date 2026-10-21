@@ -5,8 +5,10 @@
 -- both melee and ranged specs, so for them the spec has to be inspected.
 --
 -- Specs change between bosses, so they are kept for the session only and
--- refreshed in the background out of combat: when a player joins, when the
--- game reports a spec change, and when a spec is more than MAX_AGE old.
+-- refreshed in the background out of combat and outside boss encounters
+-- (a dead player is out of combat while the raid still fights the boss):
+-- when a player joins, when the game reports a spec change, and when a spec
+-- is more than MAX_AGE old.
 -- Inspects made by other addons, or by the player, are picked up as well.
 
 local _, ns = ...
@@ -137,7 +139,8 @@ function Pump()
     if request then FinishRequest() end
     return
   end
-  if InCombatLockdown() then return end -- PLAYER_REGEN_ENABLED starts it again
+  -- PLAYER_REGEN_ENABLED or ENCOUNTER_END starts it again.
+  if InCombatLockdown() or IsEncounterInProgress() then return end
   if InspectFrame and InspectFrame:IsShown() then return Schedule(5) end -- the player is inspecting someone
   local unit = NextWanted()
   if not unit then
@@ -197,6 +200,7 @@ events:RegisterEvent("INSPECT_READY")
 events:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
 events:RegisterEvent("GROUP_ROSTER_UPDATE")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
+events:RegisterEvent("ENCOUNTER_END")
 events:SetScript("OnEvent", function(_, event, arg1)
   if event == "INSPECT_READY" then
     OnInspectReady(arg1)
