@@ -1,5 +1,8 @@
 package-as: RaidnightHelper
 
+ignore:
+  - package.py
+
 move-folders:
   RaidnightHelper/src: RaidnightHelper
 

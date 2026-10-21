@@ -1,6 +1,9 @@
 # packager output
 .release/
 
+# package.py output
+dist/
+
 # packager secrets for local runs
 .env
 
