@@ -14,6 +14,7 @@
 ## Author: Photic
 ## Version: 1.0.0
 ## X-Website: https://raidnight.io/
+## X-Curse-Project-ID: 1747077
 ## SavedVariables: RaidnightHelperDB
 ## IconTexture: Interface\Icons\INV_Misc_GroupNeedMore
 
