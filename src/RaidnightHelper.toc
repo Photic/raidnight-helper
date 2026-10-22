@@ -25,3 +25,4 @@ Balance.lua
 RaidnightHelper.lua
 GroupGrid.lua
 BossLayouts.lua
+Sync.lua

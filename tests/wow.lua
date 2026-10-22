@@ -68,7 +68,7 @@ function IsInRaid() return #W.roster > 0 end
 function GetNumGroupMembers() return #W.roster end
 function GetRaidRosterInfo(i)
   local p = W.roster[i]
-  if p then return p.name, 0, p.group end
+  if p then return p.name, p.rank or 0, p.group end
 end
 -- The instance the player is in: W.instance = { kind = "raid", maxPlayers = 20 },
 -- or nil outside one. W.InRaid(maxPlayers) enters a raid instance.
@@ -78,8 +78,9 @@ function GetInstanceInfo()
   return "Raid", i.kind, 16, "Mythic", i.maxPlayers
 end
 function W.InRaid(maxPlayers) W.instance = { kind = "raid", maxPlayers = maxPlayers } end
-function UnitIsGroupLeader() return true end
-function UnitIsGroupAssistant() return true end
+-- The player leads the raid unless W.lead is false.
+function UnitIsGroupLeader() return W.lead ~= false end
+function UnitIsGroupAssistant() return W.lead ~= false end
 function InCombatLockdown() return W.inCombat == true end
 function IsEncounterInProgress() return false end
 
@@ -122,6 +123,51 @@ function W.Reload()
   W.frames, W.timers = {}, {}
   W.Load(W.dir)
 end
+-- Addon messages: what the addon sends lands in W.sent, and W.Deliver hands
+-- it back as CHAT_MSG_ADDON from sender. W.sendResult set to a number other
+-- than 0 makes the game refuse to send.
+W.sent, W.me = {}, "Me"
+C_ChatInfo = {
+  RegisterAddonMessagePrefix = function() return 0 end,
+  SendAddonMessage = function(prefix, text, channel)
+    if W.sendResult and W.sendResult ~= 0 then return W.sendResult end
+    assert(#text <= 255, "addon message over 255 bytes")
+    table.insert(W.sent, { prefix = prefix, text = text, channel = channel })
+    return 0
+  end,
+}
+function W.Deliver(sender, messages)
+  for _, m in ipairs(messages or W.sent) do
+    W.Fire("CHAT_MSG_ADDON", m.prefix, m.text, m.channel, sender)
+  end
+end
+-- Drops the home realm "Home", as Ambiguate(name, "none") does.
+function Ambiguate(name) return (name:gsub("%-Home$", "")) end
+function UnitName(unit) if unit == "player" then return W.me end end
+
+-- The Encounter Journal's newest tier: W.journal = { { id = raidID, name = "...",
+-- bosses = { { id = journalID, encounter = encounterID, name = "..." }, ... } }, ... }
+W.journal = {}
+local function JournalRaid(id)
+  for _, raid in ipairs(W.journal) do if raid.id == id then return raid end end
+end
+function EJ_GetNumTiers() return 1 end
+function EJ_GetCurrentTier() return 1 end
+function EJ_SelectTier() end
+function EJ_GetInstanceByIndex(i)
+  local raid = W.journal[i]
+  if raid then return raid.id, raid.name end
+end
+function EJ_GetEncounterInfoByIndex(i, instanceID)
+  local raid = JournalRaid(instanceID)
+  local boss = raid and raid.bosses[i]
+  if boss then return boss.name, "", boss.id, 0, "", 0, boss.encounter end
+end
+function EJ_GetCreatureInfo() end
+-- W.here = raidID puts the player inside that raid.
+function EJ_GetInstanceForMap() return W.here or 0 end
+C_Map = { GetBestMapForUnit = function() return W.here and 1 end }
+
 function UnitClass(unit) local p = W.Unit(unit); if p then return p.class, p.class end end
 function UnitGroupRolesAssigned(unit) local p = W.Unit(unit); return p and p.role or "NONE" end
 function UnitIsUnit() return false end
@@ -138,7 +184,8 @@ function GetInspectSpecialization() return 0 end
 function GetLocale() return "enUS" end
 function GetNormalizedRealmName() return "Home" end
 function GetRealmName() return "Home" end
-function IsInGroup() return false end
+-- W.raidFinder = true puts the raid in Raid Finder.
+function IsInGroup(category) return W.raidFinder == true and category == LE_PARTY_CATEGORY_INSTANCE end
 function wipe(t) for k in pairs(t) do t[k] = nil end return t end
 function time() return os.time() end
 date = os.date

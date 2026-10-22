@@ -87,6 +87,18 @@ if locale == "deDE" then
   L["After: groups %s %d%%, groups %s %d%%."] = "Danach: Gruppe %s %d%%, Gruppe %s %d%%."
 
   L["Groups %s have %d players and groups %s %d, so the goal is %d%% and %d%%."] = "Gruppe %s hat %d Spieler und Gruppe %s %d, das Ziel ist also %d%% und %d%%."
+
+  L["Send"] = "Senden"
+  L["Send this raid's boss layouts to the raid. Everyone with Raidnight Helper gets yours in place of their own."] = "Sende die Boss-Aufstellungen dieses Schlachtzugs an den Schlachtzug. Alle mit Raidnight Helper erhalten deine anstelle ihrer eigenen."
+  L["Layouts can't be sent in Raid Finder."] = "Im Schlachtzugsbrowser können keine Aufstellungen gesendet werden."
+  L["Only the raid leader and assistants can send layouts."] = "Nur der Schlachtzugsleiter und Assistenten können Aufstellungen senden."
+  L["Layouts can't be sent in combat."] = "Im Kampf können keine Aufstellungen gesendet werden."
+  L["Too many players in the layouts to send (max %d)."] = "Zu viele Spieler in den Aufstellungen zum Senden (max. %d)."
+  L["The game refused to send the layouts. Try again in a moment."] = "Das Spiel hat das Senden der Aufstellungen abgelehnt. Versuche es gleich noch einmal."
+  L["Sent the boss layouts for %s to the raid."] = "Boss-Aufstellungen für %s an den Schlachtzug gesendet."
+  L["Received boss layouts from %s."] = "Boss-Aufstellungen von %s erhalten."
+  L["%s sent layouts from a newer version of Raidnight Helper. Update the addon to receive them."] = "%s hat Aufstellungen aus einer neueren Version von Raidnight Helper gesendet. Aktualisiere das Addon, um sie zu empfangen."
+  L["The boss list is not loaded yet. Try again in a moment."] = "Die Bossliste ist noch nicht geladen. Versuche es gleich noch einmal."
 elseif locale == "esES" or locale == "esMX" then
   L["%s is in both group %d and %d."] = "%s está en el grupo %d y en el grupo %d."
   L["Invalid group number %d (must be 1-%d)."] = "Número de grupo %d no válido (debe ser 1-%d)."
@@ -162,6 +174,18 @@ elseif locale == "esES" or locale == "esMX" then
   L["After: groups %s %d%%, groups %s %d%%."] = "Después: grupos %s %d%%, grupos %s %d%%."
 
   L["Groups %s have %d players and groups %s %d, so the goal is %d%% and %d%%."] = "Los grupos %s tienen %d jugadores y los grupos %s %d, así que el objetivo es %d%% y %d%%."
+
+  L["Send"] = "Enviar"
+  L["Send this raid's boss layouts to the raid. Everyone with Raidnight Helper gets yours in place of their own."] = "Envía las composiciones de los jefes de esta banda a la banda. Todos los que tengan Raidnight Helper reciben las tuyas en lugar de las suyas."
+  L["Layouts can't be sent in Raid Finder."] = "No se pueden enviar composiciones en el Buscador de bandas."
+  L["Only the raid leader and assistants can send layouts."] = "Solo el líder y los asistentes de la banda pueden enviar composiciones."
+  L["Layouts can't be sent in combat."] = "No se pueden enviar composiciones en combate."
+  L["Too many players in the layouts to send (max %d)."] = "Demasiados jugadores en las composiciones para enviar (máx. %d)."
+  L["The game refused to send the layouts. Try again in a moment."] = "El juego rechazó el envío de las composiciones. Inténtalo de nuevo en un momento."
+  L["Sent the boss layouts for %s to the raid."] = "Composiciones de jefes de %s enviadas a la banda."
+  L["Received boss layouts from %s."] = "Composiciones de jefes recibidas de %s."
+  L["%s sent layouts from a newer version of Raidnight Helper. Update the addon to receive them."] = "%s envió composiciones de una versión más reciente de Raidnight Helper. Actualiza el addon para recibirlas."
+  L["The boss list is not loaded yet. Try again in a moment."] = "La lista de jefes aún no se ha cargado. Inténtalo de nuevo en un momento."
 elseif locale == "frFR" then
   L["%s is in both group %d and %d."] = "%s est à la fois dans le groupe %d et le groupe %d."
   L["Invalid group number %d (must be 1-%d)."] = "Numéro de groupe %d invalide (doit être entre 1 et %d)."
@@ -237,6 +261,18 @@ elseif locale == "frFR" then
   L["After: groups %s %d%%, groups %s %d%%."] = "Après : groupes %s %d %%, groupes %s %d %%."
 
   L["Groups %s have %d players and groups %s %d, so the goal is %d%% and %d%%."] = "Les groupes %s ont %d joueurs et les groupes %s %d, donc l'objectif est de %d %% et %d %%."
+
+  L["Send"] = "Envoyer"
+  L["Send this raid's boss layouts to the raid. Everyone with Raidnight Helper gets yours in place of their own."] = "Envoyez les compositions des boss de ce raid au raid. Tous ceux qui ont Raidnight Helper reçoivent les vôtres à la place des leurs."
+  L["Layouts can't be sent in Raid Finder."] = "Impossible d'envoyer des compositions en Recherche de raid."
+  L["Only the raid leader and assistants can send layouts."] = "Seuls le chef de raid et les assistants peuvent envoyer des compositions."
+  L["Layouts can't be sent in combat."] = "Impossible d'envoyer des compositions en combat."
+  L["Too many players in the layouts to send (max %d)."] = "Trop de joueurs dans les compositions à envoyer (max %d)."
+  L["The game refused to send the layouts. Try again in a moment."] = "Le jeu a refusé d'envoyer les compositions. Réessayez dans un instant."
+  L["Sent the boss layouts for %s to the raid."] = "Compositions des boss de %s envoyées au raid."
+  L["Received boss layouts from %s."] = "Compositions des boss reçues de %s."
+  L["%s sent layouts from a newer version of Raidnight Helper. Update the addon to receive them."] = "%s a envoyé des compositions d'une version plus récente de Raidnight Helper. Mettez l'addon à jour pour les recevoir."
+  L["The boss list is not loaded yet. Try again in a moment."] = "La liste des boss n'est pas encore chargée. Réessayez dans un instant."
 elseif locale == "itIT" then
   L["%s is in both group %d and %d."] = "%s è sia nel gruppo %d che nel gruppo %d."
   L["Invalid group number %d (must be 1-%d)."] = "Numero di gruppo %d non valido (deve essere 1-%d)."
@@ -312,6 +348,18 @@ elseif locale == "itIT" then
   L["After: groups %s %d%%, groups %s %d%%."] = "Dopo: gruppi %s %d%%, gruppi %s %d%%."
 
   L["Groups %s have %d players and groups %s %d, so the goal is %d%% and %d%%."] = "I gruppi %s hanno %d giocatori e i gruppi %s %d, quindi l'obiettivo è %d%% e %d%%."
+
+  L["Send"] = "Invia"
+  L["Send this raid's boss layouts to the raid. Everyone with Raidnight Helper gets yours in place of their own."] = "Invia le formazioni dei boss di questa incursione all'incursione. Chi ha Raidnight Helper riceve le tue al posto delle sue."
+  L["Layouts can't be sent in Raid Finder."] = "Non puoi inviare formazioni nella Ricerca delle incursioni."
+  L["Only the raid leader and assistants can send layouts."] = "Solo il capo e gli assistenti dell'incursione possono inviare formazioni."
+  L["Layouts can't be sent in combat."] = "Non puoi inviare formazioni in combattimento."
+  L["Too many players in the layouts to send (max %d)."] = "Troppi giocatori nelle formazioni da inviare (max %d)."
+  L["The game refused to send the layouts. Try again in a moment."] = "Il gioco ha rifiutato l'invio delle formazioni. Riprova tra un momento."
+  L["Sent the boss layouts for %s to the raid."] = "Formazioni dei boss di %s inviate all'incursione."
+  L["Received boss layouts from %s."] = "Formazioni dei boss ricevute da %s."
+  L["%s sent layouts from a newer version of Raidnight Helper. Update the addon to receive them."] = "%s ha inviato formazioni da una versione più recente di Raidnight Helper. Aggiorna l'addon per riceverle."
+  L["The boss list is not loaded yet. Try again in a moment."] = "L'elenco dei boss non è ancora caricato. Riprova tra un momento."
 elseif locale == "koKR" then
   L["%s is in both group %d and %d."] = "%s 님이 %d파티와 %d파티에 모두 있습니다."
   L["Invalid group number %d (must be 1-%d)."] = "잘못된 파티 번호 %d (1-%d 사이여야 합니다)."
@@ -387,6 +435,18 @@ elseif locale == "koKR" then
   L["After: groups %s %d%%, groups %s %d%%."] = "이후: %s 파티 %d%%, %s 파티 %d%%."
 
   L["Groups %s have %d players and groups %s %d, so the goal is %d%% and %d%%."] = "%s 파티는 %d명, %s 파티는 %d명이므로 목표는 %d%%, %d%%입니다."
+
+  L["Send"] = "보내기"
+  L["Send this raid's boss layouts to the raid. Everyone with Raidnight Helper gets yours in place of their own."] = "이 공격대의 보스 편성을 공격대에 보냅니다. Raidnight Helper를 사용하는 모든 사람의 편성이 내 편성으로 바뀝니다."
+  L["Layouts can't be sent in Raid Finder."] = "공격대 찾기에서는 편성을 보낼 수 없습니다."
+  L["Only the raid leader and assistants can send layouts."] = "공격대장과 부공격대장만 편성을 보낼 수 있습니다."
+  L["Layouts can't be sent in combat."] = "전투 중에는 편성을 보낼 수 없습니다."
+  L["Too many players in the layouts to send (max %d)."] = "보낼 편성에 플레이어가 너무 많습니다 (최대 %d명)."
+  L["The game refused to send the layouts. Try again in a moment."] = "게임이 편성 전송을 거부했습니다. 잠시 후 다시 시도하세요."
+  L["Sent the boss layouts for %s to the raid."] = "%s의 보스 편성을 공격대에 보냈습니다."
+  L["Received boss layouts from %s."] = "%s에게서 보스 편성을 받았습니다."
+  L["%s sent layouts from a newer version of Raidnight Helper. Update the addon to receive them."] = "%s 님이 더 새로운 버전의 Raidnight Helper에서 편성을 보냈습니다. 받으려면 애드온을 업데이트하세요."
+  L["The boss list is not loaded yet. Try again in a moment."] = "보스 목록이 아직 로드되지 않았습니다. 잠시 후 다시 시도하세요."
 elseif locale == "ptBR" then
   L["%s is in both group %d and %d."] = "%s está no grupo %d e no grupo %d."
   L["Invalid group number %d (must be 1-%d)."] = "Número de grupo %d inválido (deve ser 1-%d)."
@@ -462,6 +522,18 @@ elseif locale == "ptBR" then
   L["After: groups %s %d%%, groups %s %d%%."] = "Depois: grupos %s %d%%, grupos %s %d%%."
 
   L["Groups %s have %d players and groups %s %d, so the goal is %d%% and %d%%."] = "Os grupos %s têm %d jogadores e os grupos %s %d, então a meta é %d%% e %d%%."
+
+  L["Send"] = "Enviar"
+  L["Send this raid's boss layouts to the raid. Everyone with Raidnight Helper gets yours in place of their own."] = "Envie as formações dos chefes desta raide para a raide. Todos com Raidnight Helper recebem as suas no lugar das deles."
+  L["Layouts can't be sent in Raid Finder."] = "Não é possível enviar formações no Localizador de Raides."
+  L["Only the raid leader and assistants can send layouts."] = "Só o líder e os assistentes da raide podem enviar formações."
+  L["Layouts can't be sent in combat."] = "Não é possível enviar formações em combate."
+  L["Too many players in the layouts to send (max %d)."] = "Jogadores demais nas formações para enviar (máx. %d)."
+  L["The game refused to send the layouts. Try again in a moment."] = "O jogo recusou o envio das formações. Tente de novo em instantes."
+  L["Sent the boss layouts for %s to the raid."] = "Formações dos chefes de %s enviadas para a raide."
+  L["Received boss layouts from %s."] = "Formações dos chefes recebidas de %s."
+  L["%s sent layouts from a newer version of Raidnight Helper. Update the addon to receive them."] = "%s enviou formações de uma versão mais nova do Raidnight Helper. Atualize o addon para recebê-las."
+  L["The boss list is not loaded yet. Try again in a moment."] = "A lista de chefes ainda não foi carregada. Tente de novo em instantes."
 elseif locale == "ruRU" then
   L["%s is in both group %d and %d."] = "%s указан и в группе %d, и в группе %d."
   L["Invalid group number %d (must be 1-%d)."] = "Неверный номер группы %d (должен быть 1-%d)."
@@ -537,6 +609,18 @@ elseif locale == "ruRU" then
   L["After: groups %s %d%%, groups %s %d%%."] = "После: группы %s %d%%, группы %s %d%%."
 
   L["Groups %s have %d players and groups %s %d, so the goal is %d%% and %d%%."] = "В группах %s %d игроков, в группах %s — %d, поэтому цель — %d%% и %d%%."
+
+  L["Send"] = "Отправить"
+  L["Send this raid's boss layouts to the raid. Everyone with Raidnight Helper gets yours in place of their own."] = "Отправить расстановки боссов этого рейда в рейд. У всех с Raidnight Helper их расстановки заменятся вашими."
+  L["Layouts can't be sent in Raid Finder."] = "В поиске рейдов нельзя отправлять расстановки."
+  L["Only the raid leader and assistants can send layouts."] = "Отправлять расстановки могут только лидер и помощники рейда."
+  L["Layouts can't be sent in combat."] = "В бою нельзя отправлять расстановки."
+  L["Too many players in the layouts to send (max %d)."] = "Слишком много игроков в расстановках для отправки (макс. %d)."
+  L["The game refused to send the layouts. Try again in a moment."] = "Игра не дала отправить расстановки. Попробуйте ещё раз чуть позже."
+  L["Sent the boss layouts for %s to the raid."] = "Расстановки боссов для «%s» отправлены в рейд."
+  L["Received boss layouts from %s."] = "Получены расстановки боссов от %s."
+  L["%s sent layouts from a newer version of Raidnight Helper. Update the addon to receive them."] = "%s отправил(а) расстановки из более новой версии Raidnight Helper. Обновите аддон, чтобы получить их."
+  L["The boss list is not loaded yet. Try again in a moment."] = "Список боссов ещё не загружен. Попробуйте ещё раз чуть позже."
 elseif locale == "zhCN" then
   L["%s is in both group %d and %d."] = "%s 同时在第%d小队和第%d小队中。"
   L["Invalid group number %d (must be 1-%d)."] = "无效的小队编号 %d（必须为 1-%d）。"
@@ -612,6 +696,18 @@ elseif locale == "zhCN" then
   L["After: groups %s %d%%, groups %s %d%%."] = "之后：%s队%d%%，%s队%d%%。"
 
   L["Groups %s have %d players and groups %s %d, so the goal is %d%% and %d%%."] = "%s队有%d名玩家，%s队有%d名，因此目标是%d%%和%d%%。"
+
+  L["Send"] = "发送"
+  L["Send this raid's boss layouts to the raid. Everyone with Raidnight Helper gets yours in place of their own."] = "将此团队副本的首领分组发送给团队。所有使用 Raidnight Helper 的人都会用你的分组替换他们自己的。"
+  L["Layouts can't be sent in Raid Finder."] = "无法在团队查找器中发送分组。"
+  L["Only the raid leader and assistants can send layouts."] = "只有团长和助理才能发送分组。"
+  L["Layouts can't be sent in combat."] = "战斗中无法发送分组。"
+  L["Too many players in the layouts to send (max %d)."] = "要发送的分组中玩家过多（最多 %d 名）。"
+  L["The game refused to send the layouts. Try again in a moment."] = "游戏拒绝发送分组。请稍后再试。"
+  L["Sent the boss layouts for %s to the raid."] = "已将 %s 的首领分组发送给团队。"
+  L["Received boss layouts from %s."] = "已收到 %s 发送的首领分组。"
+  L["%s sent layouts from a newer version of Raidnight Helper. Update the addon to receive them."] = "%s 发送的分组来自更新版本的 Raidnight Helper。请更新插件以接收。"
+  L["The boss list is not loaded yet. Try again in a moment."] = "首领列表尚未加载。请稍后再试。"
 elseif locale == "zhTW" then
   L["%s is in both group %d and %d."] = "%s 同時在第%d小隊和第%d小隊中。"
   L["Invalid group number %d (must be 1-%d)."] = "無效的小隊編號 %d（必須為 1-%d）。"
@@ -686,4 +782,16 @@ elseif locale == "zhTW" then
   L["%s and %s trade places."] = "%s和%s交換位置。"
   L["After: groups %s %d%%, groups %s %d%%."] = "之後：%s隊%d%%，%s隊%d%%。"
   L["Groups %s have %d players and groups %s %d, so the goal is %d%% and %d%%."] = "%s隊有%d名玩家，%s隊有%d名，因此目標是%d%%和%d%%。"
+
+  L["Send"] = "傳送"
+  L["Send this raid's boss layouts to the raid. Everyone with Raidnight Helper gets yours in place of their own."] = "將此團隊副本的首領分組傳送給團隊。所有使用 Raidnight Helper 的人都會以你的分組取代他們自己的。"
+  L["Layouts can't be sent in Raid Finder."] = "無法在團隊搜尋器中傳送分組。"
+  L["Only the raid leader and assistants can send layouts."] = "只有團隊隊長和助理才能傳送分組。"
+  L["Layouts can't be sent in combat."] = "戰鬥中無法傳送分組。"
+  L["Too many players in the layouts to send (max %d)."] = "要傳送的分組中玩家過多（最多 %d 名）。"
+  L["The game refused to send the layouts. Try again in a moment."] = "遊戲拒絕傳送分組。請稍後再試。"
+  L["Sent the boss layouts for %s to the raid."] = "已將 %s 的首領分組傳送給團隊。"
+  L["Received boss layouts from %s."] = "已收到 %s 傳送的首領分組。"
+  L["%s sent layouts from a newer version of Raidnight Helper. Update the addon to receive them."] = "%s 傳送的分組來自較新版本的 Raidnight Helper。請更新插件以接收。"
+  L["The boss list is not loaded yet. Try again in a moment."] = "首領列表尚未載入。請稍後再試。"
 end

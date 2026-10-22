@@ -61,6 +61,7 @@ A row of boss icons at the top of the window shows the bosses of the current rai
 - Click a boss to load its saved layout into the groups.
 - The boss you pulled last is selected automatically, also after a `/reload`. Click another boss to choose it instead.
 - **Save** stores the current layout under the selected boss. **Delete** removes it.
+- **Send** (or `/raidnight send`) sends the boss layouts of the raid in the dropdown to everyone in the raid who has Raidnight Helper. Their layouts for that raid's bosses are replaced by yours, and bosses you have nothing saved for are cleared on their side; their layouts for other raids stay. With the window closed, `/raidnight send` sends the raid the dropdown would open on. Only the raid leader and assistants can send, out of combat and not in Raid Finder, and layouts are only taken in from them. Someone who joins the raid after a push, or reloads while one is on the way, does not get it: press Send again. That does no harm to those who already have the layouts.
 - Faded icons have nothing saved yet. Hover an icon to see when its layout was saved.
 - With **Save the raid's groups to the boss on pull** checked (the default), every pull stores the raid's groups as they are under that boss, so the next click on it brings back the groups from the last pull. Raid Finder pulls are skipped.
 - Layouts are stored account-wide in WoW's saved variables, so addon updates keep them.
@@ -85,4 +86,5 @@ Names can also go one per line under a `Group N` line, and `Gruppe`, `G1` and `1
 | `/raidnight auto` | Pick who plays from the whole raid, balance the groups that play by role, and sort |
 | `/raidnight balance` | Even out the damage of the two halves from the last boss pull, and sort |
 | `/raidnight invite` | Invite players on the list who are not in the raid |
+| `/raidnight send` | Send the boss layouts of the raid in the dropdown to the raid |
 | `/raidnight stop` | Stop a sort in progress |

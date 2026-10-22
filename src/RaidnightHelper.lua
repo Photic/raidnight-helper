@@ -18,6 +18,7 @@
 --   /raidnight auto    balance the groups that play by role and sort (see AutoGroups.lua)
 --   /raidnight balance even out the damage of the two halves (see Balance.lua)
 --   /raidnight invite  invite players on the list who are not in the raid
+--   /raidnight send    send the boss layouts of the raid in the dropdown to the raid (see Sync.lua)
 --   /raidnight stop    stop a sort in progress
 --
 -- Player-facing text goes through L (see Locales.lua).
@@ -1338,6 +1339,8 @@ SlashCmdList.RAIDNIGHT = function(msg)
     ns.Balance()
   elseif msg == "invite" then
     ns.InviteMissing(GetDB().text)
+  elseif msg == "send" then
+    ns.SendLayouts()
   elseif msg == "stop" then
     ns.StopSorting()
   else

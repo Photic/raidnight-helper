@@ -2,7 +2,8 @@
 -- A row of boss icons at the top of the Raidnight Helper window. Each boss keeps one
 -- layout: Save stores the current layout under the selected boss, and clicking
 -- a boss loads its layout back into the grid. A pull selects that boss, and
--- with auto-save on, it also stores the raid's actual groups under it.
+-- with auto-save on, it also stores the raid's actual groups under it. Send
+-- shares the raid's layouts with the rest of the raid (see Sync.lua).
 --
 -- Bosses come from the Encounter Journal, so the row follows the current tier
 -- without hardcoded names. Layouts are keyed by journal encounter ID, which is
@@ -180,15 +181,21 @@ local function HasRaid(id)
   return false
 end
 
--- Shows the raid the player is in, else the raid shown last, else the raid of
--- the boss pulled last, else the first. The boss pulled last is selected
--- after a new pull, or when no boss is selected yet.
-local function Refresh()
+-- The raid the dropdown opens on: the raid the player is in, else the raid
+-- shown last, else the raid of the boss pulled last, else the first.
+local function TargetRaid()
   if #bar.raids == 0 then bar.raids = LoadRaids() end
   local last = ns.GetDB().lastBoss
   local here = CurrentInstance()
-  local target = (HasRaid(here) and here) or bar.raid
+  return (HasRaid(here) and here) or bar.raid
     or (last and HasRaid(last.raid) and last.raid) or (bar.raids[1] and bar.raids[1].id)
+end
+
+-- Shows the raid TargetRaid picks. The boss pulled last is selected
+-- after a new pull, or when no boss is selected yet.
+local function Refresh()
+  local last = ns.GetDB().lastBoss
+  local target = TargetRaid()
   if not target then
     -- Right after login or a reload the Encounter Journal can come back
     -- empty, so it is asked again shortly while the window is open.
@@ -244,6 +251,36 @@ function ns.RestoreBossLayout(id, layout)
   if bar.row then UpdateButtons() end
 end
 
+-- The raid in the dropdown, as { id, name }: the one shown while the window
+-- is open, else the one it opens on.
+function ns.SelectedRaid()
+  local id = (bar.row and bar.row:IsVisible() and bar.raid) or TargetRaid()
+  for _, raid in ipairs(bar.raids) do
+    if raid.id == id then return raid end
+  end
+end
+
+-- Every boss of a raid as { [journalID] = layout text, or false when nothing
+-- is saved }.
+function ns.RaidLayouts(raidID)
+  local layouts = {}
+  for _, boss in ipairs(LoadBosses(raidID)) do
+    local layout = Layouts()[boss.id]
+    layouts[boss.id] = layout and layout.text or false
+  end
+  return layouts
+end
+
+-- Stores layouts in the shape ns.RaidLayouts gives them; false removes a
+-- boss's layout.
+function ns.SetBossLayouts(layouts)
+  local stored = Layouts()
+  for id, text in pairs(layouts) do
+    stored[id] = text and { text = text, saved = time() } or nil
+  end
+  if bar.row then UpdateButtons() end
+end
+
 StaticPopupDialogs.RAIDNIGHT_DELETE_LAYOUT = {
   text = L["Delete the saved layout for %s?"],
   button1 = YES,
@@ -281,6 +318,17 @@ function ns.CreateBossBar(f)
   local save = ns.MakeButton(f, L["Save"], 80)
   save:SetPoint("RIGHT", delete, "LEFT", -6, 0)
   save:SetScript("OnClick", SaveSelected)
+
+  local send = ns.MakeButton(f, L["Send"], 80)
+  send:SetPoint("RIGHT", save, "LEFT", -6, 0)
+  send:SetScript("OnClick", function() ns.SendLayouts() end)
+  send:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    GameTooltip:SetText(L["Send"])
+    GameTooltip:AddLine(L["Send this raid's boss layouts to the raid. Everyone with Raidnight Helper gets yours in place of their own."], 1, 1, 1, true)
+    GameTooltip:Show()
+  end)
+  send:SetScript("OnLeave", GameTooltip_Hide)
 
   local row = CreateFrame("Frame", nil, f)
   row:SetPoint("TOPLEFT", 16, -62)

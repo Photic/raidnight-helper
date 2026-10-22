@@ -2,6 +2,10 @@
 
 ## [1.1.0] - 2026-10-22
 
+### Added
+
+- **Send** in the boss row (or `/raidnight send`) sends the boss layouts of the raid in the dropdown to everyone in the raid with Raidnight Helper, in place of their own layouts for that raid. Only the raid leader and assistants can send, out of combat.
+
 ### Changed
 
 - The groups that play now follow the size of the raid. Up to 20 players, groups 1–4 play as before, in halves 1+2 and 3+4. With 21 or more, groups 1–6 play, in halves 1–3 and 4–6. Inside a Mythic raid it stays groups 1–4, and in Mythic flex (up to 25 players) groups 1–5 play, in halves 1–3 and 4–5. Auto, Balance, locks and filling open slots all follow this.
