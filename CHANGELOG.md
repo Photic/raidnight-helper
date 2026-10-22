@@ -1,12 +1,13 @@
 # Changelog
 
-## [Unreleased]
+## [1.1.0] - 2026-10-22
 
 ### Changed
 
-- Auto, Balance, locks and filling open slots now work on the groups that play, which follow the size of the raid: groups 1–4 for up to 20 players, and groups 1–6 (halves 1–3 and 4–6) for more. Inside a Mythic raid it stays groups 1–4, and in Mythic flex it is groups 1–5 (halves 1–3 and 4–5).
-- Auto keeps the two halves as even in size as the groups allow, for example 9 and 9 with 18 players instead of 10 and 8.
-- When the halves differ in size, Balance aims for each half's share of the players (60% and 40% with 15 and 10 players) and says so in chat.
+- The groups that play now follow the size of the raid. Up to 20 players, groups 1–4 play as before, in halves 1+2 and 3+4. With 21 or more, groups 1–6 play, in halves 1–3 and 4–6. Inside a Mythic raid it stays groups 1–4, and in Mythic flex (up to 25 players) groups 1–5 play, in halves 1–3 and 4–5. Auto, Balance, locks and filling open slots all follow this.
+- Auto keeps the halves as even in size as the groups allow: 9 and 9 with 18 players, not 10 and 8.
+- When the halves differ in size, Balance aims for each half's share of the players, for example 60% and 40% with 15 and 10 players, and the chat shows that goal.
+- Balance's chat lines and the lock tooltip name the groups that play, such as "groups 1+2+3" or "groups 1-6".
 
 ## [1.0.2] - 2026-10-21
 
