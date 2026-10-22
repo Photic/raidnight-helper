@@ -3,15 +3,20 @@
 -- above 5-8. Names are moved with the mouse: dropped on another name, the two
 -- swap places; dropped on an empty slot, the name moves there; dropped on
 -- "Not on list", it comes off the list. Raid members who are not on the list
--- wait in that column and can be dragged into a group.
+-- wait in that column and can be dragged into a group. So can names that are
+-- not in the raid: dropped there, they wait in it, grey, and the layout keeps
+-- them on its "Not on list:" line. A name that is not in the raid comes off
+-- the list for good from its right-click menu, or when dropped outside the
+-- window.
 --
 -- In a raid, the players dragged move in the raid too (see ns.MoveInRaid);
 -- everyone else stays put until Sort raid. Names show in class colours with
--- a role icon, and grey without one while the player is not in the raid. A
--- name in a group shows, in orange, the number of the group the player is in
--- now when that is another one. Raid members have a lock to click: locked
--- players never go into the groups that play when the raid is sorted (see
--- ns.PlayGroups), and Balance leaves them where they are (see ns.IsLocked).
+-- the raid frames' role icon, and grey without one while the player is not in
+-- the raid. A name in a group shows, in orange, the number of the group the
+-- player is in now when that is another one. Raid members have a lock to
+-- click: locked players never go into the groups that play when the raid is
+-- sorted (see ns.PlayGroups), and Balance leaves them where they are (see
+-- ns.IsLocked).
 
 local _, ns = ...
 local L = ns.L
@@ -26,11 +31,13 @@ local HEADER      = 16
 local GAP         = 6
 local LOCK_ICON   = "Interface\\LFGFrame\\UI-LFG-ICON-LOCK"
 
-local ROLE_ICONS = {
-  TANK   = "Interface\\Icons\\INV_Shield_06",
-  HEALER = "Interface\\Icons\\Spell_Holy_FlashHeal",
-  MELEE  = "Interface\\Icons\\INV_Sword_04",
-  RANGED = "Interface\\Icons\\INV_Weapon_Bow_07",
+-- The role icons of the game's raid frames (GetMicroIconForRole). Melee and
+-- ranged share the damage icon, as they do there.
+local ROLE_ATLASES = {
+  TANK   = "UI-LFG-RoleIcon-Tank-Micro-GroupFinder",
+  HEALER = "UI-LFG-RoleIcon-Healer-Micro-GroupFinder",
+  MELEE  = "UI-LFG-RoleIcon-DPS-Micro-GroupFinder",
+  RANGED = "UI-LFG-RoleIcon-DPS-Micro-GroupFinder",
 }
 
 -- groups[g] and pool hold the slot buttons; targets is everything a name can
@@ -56,9 +63,9 @@ local function ShowName(slot, name, info)
   slot.lock:SetShown(info ~= nil)
   slot.lock.icon:SetDesaturated(not slot.locked)
   slot.lock.icon:SetAlpha(slot.locked and 1 or 0.3) -- faded = unlocked
-  local icon = info and ROLE_ICONS[info.role]
-  slot.icon:SetTexture(icon)
-  slot.icon:SetShown(icon ~= nil)
+  local atlas = info and ROLE_ATLASES[info.role]
+  if atlas then slot.icon:SetAtlas(atlas) end
+  slot.icon:SetShown(atlas ~= nil)
   local color = info and RAID_CLASS_COLORS[info.class]
   if color then
     slot.text:SetTextColor(color.r, color.g, color.b)
@@ -72,73 +79,134 @@ end
 function ns.RefreshGrid()
   if not (grid.frame and grid.frame:IsVisible()) then return end
   local plan = ns.ParseInput(ns.GetDB().text)
-  local found, extras = ns.MatchRaid(plan)
+  local found, extras, away = ns.MatchRaid(plan)
   for g = 1, MAX_GROUPS do
     local names = plan.groups[g] or {}
     for i, slot in ipairs(grid.groups[g]) do
       ShowName(slot, names[i], names[i] and found[names[i]])
     end
   end
+  -- "Not on list" shows the raid members first, then the names waiting
+  -- there who are not in the raid.
+  local pool = {}
+  for _, p in ipairs(extras) do pool[#pool + 1] = { name = p.name, info = p } end
+  for _, name in ipairs(away) do pool[#pool + 1] = { name = name } end
   for i, slot in ipairs(grid.pool) do
-    if i == POOL_SIZE and #extras > POOL_SIZE then
+    if i == POOL_SIZE and #pool > POOL_SIZE then
       ShowName(slot, nil)
-      slot.text:SetText(L["+%d more"]:format(#extras - POOL_SIZE + 1))
+      slot.text:SetText(L["+%d more"]:format(#pool - POOL_SIZE + 1))
     else
-      local p = extras[i]
-      ShowName(slot, p and p.name, p)
+      local p = pool[i]
+      ShowName(slot, p and p.name, p and p.info)
     end
   end
+end
+
+---------------------------------------------------------------------------
+-- Removing
+---------------------------------------------------------------------------
+
+local function IndexOf(list, value)
+  for i, v in ipairs(list) do
+    if v == value then return i end
+  end
+end
+
+-- Takes a name off the list when the player is not in the raid: from its
+-- group, or with group nil, from "Not on list". Raid members come off the
+-- list by a drag to "Not on list". Nothing happens if the layout changed
+-- since.
+local function Remove(group, index, name)
+  local plan = ns.ParseInput(ns.GetDB().text)
+  local found, _, away = ns.MatchRaid(plan)
+  if group then
+    local list = plan.groups[group]
+    if not (list and list[index] == name) or found[name] then return end
+    table.remove(list, index)
+  else
+    local i = IndexOf(plan.parked, name)
+    if not (i and IndexOf(away, name)) then return end
+    table.remove(plan.parked, i)
+  end
+  ns.SetLayout(ns.FormatLayout(plan.groups, plan.parked))
+end
+
+-- A right-click on a name that is not in the raid opens a menu to remove it.
+local function OnSlotClick(self, button)
+  if button ~= "RightButton" or not self.name or self.member then return end
+  local group, index, name = self.group, self.index, self.name
+  MenuUtil.CreateContextMenu(self, function(_, root)
+    root:CreateTitle(name)
+    root:CreateButton(L["Remove from list"], function() Remove(group, index, name) end)
+  end)
 end
 
 ---------------------------------------------------------------------------
 -- Dragging
 ---------------------------------------------------------------------------
 
--- Moves the dragged name ({ group, index, name, raidGroup }) to the target, a
--- slot or the "Not on list" column, makes the result the layout, and moves
--- the players whose group changed in the raid as well. A name taken off the
--- list stays where it is in the raid, unless a player from "Not on list"
--- takes its slot; then the two swap.
+-- Moves the dragged name ({ group, index, name, raidGroup, member }) to the
+-- target, a slot or the "Not on list" column, makes the result the layout,
+-- and moves the raid members whose group changed in the raid as well. A raid
+-- member taken off the list stays where it is in the raid, unless a player
+-- from "Not on list" takes its slot; then the two swap. A name that is not in
+-- the raid waits in "Not on list" when it leaves the groups, and moves nobody.
 local function Drop(from, to)
-  local groups = ns.ParseInput(ns.GetDB().text).groups
+  local plan = ns.ParseInput(ns.GetDB().text)
+  local groups, parked = plan.groups, plan.parked
   local function List(g)
     groups[g] = groups[g] or {}
     return groups[g]
   end
   -- Nothing happens if the layout changed under the drag.
-  local function Holds(t) return not t.group or List(t.group)[t.index] == t.name end
+  local function Holds(t)
+    if t.group then return List(t.group)[t.index] == t.name end
+    return not t.name or t.member ~= nil or IndexOf(parked, t.name) ~= nil
+  end
   if not (Holds(from) and Holds(to)) then return end
 
   local moves = {}
+  local function Move(t, g)
+    if t.member then moves[t.name] = g end
+  end
+  local function Park(t)
+    if not t.member then parked[#parked + 1] = t.name end
+  end
   if from.group and to.group then
     if to.name then
       List(from.group)[from.index], List(to.group)[to.index] = to.name, from.name
-      moves[to.name] = from.group
+      Move(to, from.group)
     else
       table.remove(List(from.group), from.index)
       table.insert(List(to.group), from.name)
     end
-    moves[from.name] = to.group
+    Move(from, to.group)
   elseif from.group then
     table.remove(List(from.group), from.index)
+    Park(from)
   elseif to.group then
     if to.name then
       List(to.group)[to.index] = from.name
-      moves[to.name] = from.raidGroup
+      Move(to, from.raidGroup)
+      Park(to)
     else
       table.insert(List(to.group), from.name)
     end
-    moves[from.name] = to.group
+    Move(from, to.group)
   else
     return
   end
-  ns.SetLayout(ns.FormatLayout(groups))
+  -- A name waiting in "Not on list" that is now in a group leaves it there.
+  ns.SetLayout(ns.FormatLayout(groups, parked))
   ns.MoveInRaid(moves)
 end
 
 local function OnDragStart(self)
   if not self.name then return end
-  grid.drag = { group = self.group, index = self.index, name = self.name, raidGroup = self.raidGroup, slot = self }
+  grid.drag = {
+    group = self.group, index = self.index, name = self.name, raidGroup = self.raidGroup,
+    member = self.member, slot = self,
+  }
   grid.ghost.text:SetText(self.name)
   grid.ghost.text:SetTextColor(self.text:GetTextColor())
   grid.ghost:Show()
@@ -162,6 +230,10 @@ local function OnDragStop()
       if target ~= drag.slot then Drop(drag, target) end
       return
     end
+  end
+  -- Dropped outside the window: a name that is not in the raid comes off the list.
+  if not drag.member and not grid.frame:GetParent():IsMouseOver() then
+    Remove(drag.group, drag.index, drag.name)
   end
 end
 
@@ -220,7 +292,6 @@ local function NewSlot(parent, group, index)
   slot.icon = slot:CreateTexture(nil, "ARTWORK")
   slot.icon:SetSize(SLOT_HEIGHT - 3, SLOT_HEIGHT - 3)
   slot.icon:SetPoint("LEFT", 2, 0)
-  slot.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92) -- trims the icon's border
 
   slot.lock = CreateFrame("Button", nil, slot)
   slot.lock:SetSize(SLOT_HEIGHT - 3, SLOT_HEIGHT - 3)
@@ -246,6 +317,8 @@ local function NewSlot(parent, group, index)
   slot:RegisterForDrag("LeftButton")
   slot:SetScript("OnDragStart", OnDragStart)
   slot:SetScript("OnDragStop", OnDragStop)
+  slot:RegisterForClicks("RightButtonUp")
+  slot:SetScript("OnClick", OnSlotClick)
   table.insert(grid.targets, slot)
   return slot
 end

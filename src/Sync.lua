@@ -12,6 +12,9 @@
 --   <name>,<name>,...;<boss>:<groups>;<boss>:<groups>;...
 --   Brannoc,Elowyn,Fenwick-ArgentDawn;2901:AB.C;2902:;2903:..CA
 --
+-- After group 8 comes a ninth field with the names waiting in "Not on list";
+-- versions before it read groups 1-8 and leave the rest.
+--
 -- Bosses are journal encounter IDs, the same in every client language.
 -- An addon message holds 255 bytes, so a push goes out in parts, each one
 -- starting with the format version and its number: "1:2/3:<part>".
@@ -58,9 +61,10 @@ function ns.EncodeLayouts(layouts)
     local groups = {}
     if layouts[id] then
       local plan = ns.ParseInput(layouts[id])
-      for g = 1, MAX_GROUPS do
+      for g = 1, MAX_GROUPS + 1 do
         local chars = {}
-        for _, name in ipairs(plan.groups[g] or {}) do
+        local list = g > MAX_GROUPS and plan.parked or plan.groups[g] or {}
+        for _, name in ipairs(list) do
           if not place[name] then
             names[#names + 1] = name
             place[name] = #names
@@ -102,7 +106,7 @@ function ns.DecodeLayouts(text)
         end
       end
     end
-    local layout = ns.FormatLayout(groups)
+    local layout = ns.FormatLayout(groups, groups[MAX_GROUPS + 1])
     layouts[tonumber(id)] = layout ~= "" and layout
   end
   return layouts

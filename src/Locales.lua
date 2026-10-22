@@ -102,6 +102,7 @@ if locale == "deDE" then
   L["The lists have more players than groups 1-%d can hold."] = "Die Listen haben mehr Spieler, als Gruppe 1-%d fassen kann."
   L["Swap halves"] = "Hälften tauschen"
   L["Groups %s and %s traded places."] = "Gruppe %s und %s haben die Plätze getauscht."
+  L["Remove from list"] = "Von der Liste entfernen"
 elseif locale == "esES" or locale == "esMX" then
   L["%s is in both group %d and %d."] = "%s está en el grupo %d y en el grupo %d."
   L["Invalid group number %d (must be 1-%d)."] = "Número de grupo %d no válido (debe ser 1-%d)."
@@ -192,6 +193,7 @@ elseif locale == "esES" or locale == "esMX" then
   L["The lists have more players than groups 1-%d can hold."] = "Las listas tienen más jugadores de los que caben en los grupos 1-%d."
   L["Swap halves"] = "Intercambiar mitades"
   L["Groups %s and %s traded places."] = "Los grupos %s y %s intercambiaron sus puestos."
+  L["Remove from list"] = "Quitar de la lista"
 elseif locale == "frFR" then
   L["%s is in both group %d and %d."] = "%s est à la fois dans le groupe %d et le groupe %d."
   L["Invalid group number %d (must be 1-%d)."] = "Numéro de groupe %d invalide (doit être entre 1 et %d)."
@@ -282,6 +284,7 @@ elseif locale == "frFR" then
   L["The lists have more players than groups 1-%d can hold."] = "Les listes comptent plus de joueurs que les groupes 1-%d ne peuvent en contenir."
   L["Swap halves"] = "Échanger les moitiés"
   L["Groups %s and %s traded places."] = "Les groupes %s et %s ont échangé leurs places."
+  L["Remove from list"] = "Retirer de la liste"
 elseif locale == "itIT" then
   L["%s is in both group %d and %d."] = "%s è sia nel gruppo %d che nel gruppo %d."
   L["Invalid group number %d (must be 1-%d)."] = "Numero di gruppo %d non valido (deve essere 1-%d)."
@@ -372,6 +375,7 @@ elseif locale == "itIT" then
   L["The lists have more players than groups 1-%d can hold."] = "Le liste hanno più giocatori di quanti ne contengano i gruppi 1-%d."
   L["Swap halves"] = "Scambia metà"
   L["Groups %s and %s traded places."] = "I gruppi %s e %s si sono scambiati di posto."
+  L["Remove from list"] = "Rimuovi dalla lista"
 elseif locale == "koKR" then
   L["%s is in both group %d and %d."] = "%s 님이 %d파티와 %d파티에 모두 있습니다."
   L["Invalid group number %d (must be 1-%d)."] = "잘못된 파티 번호 %d (1-%d 사이여야 합니다)."
@@ -462,6 +466,7 @@ elseif locale == "koKR" then
   L["The lists have more players than groups 1-%d can hold."] = "목록의 플레이어가 1-%d파티에 들어갈 수 있는 수보다 많습니다."
   L["Swap halves"] = "절반 교체"
   L["Groups %s and %s traded places."] = "%s 파티와 %s 파티의 자리를 바꿨습니다."
+  L["Remove from list"] = "목록에서 제거"
 elseif locale == "ptBR" then
   L["%s is in both group %d and %d."] = "%s está no grupo %d e no grupo %d."
   L["Invalid group number %d (must be 1-%d)."] = "Número de grupo %d inválido (deve ser 1-%d)."
@@ -552,6 +557,7 @@ elseif locale == "ptBR" then
   L["The lists have more players than groups 1-%d can hold."] = "As listas têm mais jogadores do que cabem nos grupos 1-%d."
   L["Swap halves"] = "Trocar metades"
   L["Groups %s and %s traded places."] = "Os grupos %s e %s trocaram de lugar."
+  L["Remove from list"] = "Remover da lista"
 elseif locale == "ruRU" then
   L["%s is in both group %d and %d."] = "%s указан и в группе %d, и в группе %d."
   L["Invalid group number %d (must be 1-%d)."] = "Неверный номер группы %d (должен быть 1-%d)."
@@ -642,6 +648,7 @@ elseif locale == "ruRU" then
   L["The lists have more players than groups 1-%d can hold."] = "В списках больше игроков, чем вмещают группы 1-%d."
   L["Swap halves"] = "Поменять половины"
   L["Groups %s and %s traded places."] = "Группы %s и %s поменялись местами."
+  L["Remove from list"] = "Убрать из списка"
 elseif locale == "zhCN" then
   L["%s is in both group %d and %d."] = "%s 同时在第%d小队和第%d小队中。"
   L["Invalid group number %d (must be 1-%d)."] = "无效的小队编号 %d（必须为 1-%d）。"
@@ -732,6 +739,7 @@ elseif locale == "zhCN" then
   L["The lists have more players than groups 1-%d can hold."] = "列表中的玩家超过了第1-%d小队的容量。"
   L["Swap halves"] = "交换两半"
   L["Groups %s and %s traded places."] = "%s队和%s队已交换位置。"
+  L["Remove from list"] = "从名单中移除"
 elseif locale == "zhTW" then
   L["%s is in both group %d and %d."] = "%s 同時在第%d小隊和第%d小隊中。"
   L["Invalid group number %d (must be 1-%d)."] = "無效的小隊編號 %d（必須為 1-%d）。"
@@ -821,4 +829,5 @@ elseif locale == "zhTW" then
   L["The lists have more players than groups 1-%d can hold."] = "清單中的玩家超過了第1-%d小隊的容量。"
   L["Swap halves"] = "交換兩半"
   L["Groups %s and %s traded places."] = "%s隊和%s隊已交換位置。"
+  L["Remove from list"] = "從名單中移除"
 end

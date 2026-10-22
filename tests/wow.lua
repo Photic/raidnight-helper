@@ -46,8 +46,11 @@ function NewFrame(parent)
   f.GetText = function(self) return self.text_ end
   f.SetEnabled = function(self, e) self.enabled = e end
   f.SetShown = function(self, s) self.shown = s end
+  f.SetAtlas = function(self, a) self.atlas_ = a end
   f.GetTextWidth = function() return 40 end
   f.GetWidth = function() return 100 end
+  -- W.mouseOver is the frame under the mouse, or nil for none of the addon's.
+  f.IsMouseOver = function(self) return W.mouseOver == self end
   table.insert(W.frames, f)
   return f
 end
@@ -199,6 +202,16 @@ UISpecialFrames = {}
 StaticPopupDialogs = {}
 SlashCmdList = {}
 GameTooltip = NewFrame()
+-- The last context menu opened: W.menu = { owner, title, buttons = { { text, fn } } }.
+MenuUtil = { CreateContextMenu = function(owner, generator)
+  local menu = { owner = owner, buttons = {} }
+  local root = {
+    CreateTitle = function(_, text) menu.title = text end,
+    CreateButton = function(_, text, fn) table.insert(menu.buttons, { text = text, fn = fn }) end,
+  }
+  generator(owner, root)
+  W.menu = menu
+end }
 YES, NO = "Yes", "No"
 LE_PARTY_CATEGORY_INSTANCE = 2
 

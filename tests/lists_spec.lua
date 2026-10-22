@@ -121,6 +121,50 @@ T("ui: pasted named lists are stored as groups", function()
 end)
 
 ---------------------------------------------------------------------------
+-- Not on list
+---------------------------------------------------------------------------
+
+T("a Not on list line keeps names outside the groups", function()
+  local text = "Group 1: Ashlyn\nNot on list: Corvain, Dúnmir"
+  local plan = W.ns.ParseInput(text)
+  eq(#plan.errors, 0, "errors")
+  eq(plan.count, 1, "count")
+  eq(table.concat(plan.parked, " "), "Corvain Dúnmir", "parked")
+  eq(W.ns.FormatLayout(plan.groups, plan.parked), text, "formats back")
+end)
+
+T("a name in a group and in Not on list stays in the group", function()
+  local plan = W.ns.ParseInput("Group 1: Corvain\nNot on list: corvain, Dúnmir, Dunmir")
+  eq(table.concat(plan.parked, " "), "Dúnmir", "parked")
+  eq(W.ns.FormatLayout({ { "Ravéna" } }, { "Ravena-Silvermoon", "Thessaly" }), "Group 1: Ravéna\nNot on list: Thessaly",
+    "a name without a realm matches any realm")
+end)
+
+T("a layout of only names in Not on list is a layout", function()
+  local plan = W.ns.ParseInput("Not on list: Corvain")
+  eq(#plan.errors, 0, "errors")
+  eq(plan.count, 0, "count")
+  eq(plan.parked[1], "Corvain", "parked")
+end)
+
+T("Not on list is not a named list, and a label after it is", function()
+  local text = "Not on list: Ashlyn\nLeft: Brannoc Elowyn"
+  local plan = W.ns.ParseInput(text)
+  eq(Group(text, 1), "Brannoc Elowyn", "group 1")
+  eq(table.concat(plan.parked, " "), "Ashlyn", "parked")
+end)
+
+T("Auto and Swap halves keep the names in Not on list", function()
+  Join({ "Ashlyn", "Brannoc" })
+  W.ns.SetLayout("Group 1: Ashlyn\nGroup 3: Brannoc\nNot on list: Corvain")
+  W.ns.SwapHalves()
+  eq(W.ns.GetDB().text, "Group 1: Brannoc\nGroup 3: Ashlyn\nNot on list: Corvain", "swap")
+  W.ns.Auto()
+  ok(W.RunUntil(W.Idle, 120), "auto ended")
+  ok(W.ns.GetDB().text:find("\nNot on list: Corvain$"), "auto: " .. W.ns.GetDB().text)
+end)
+
+---------------------------------------------------------------------------
 -- Swap halves
 ---------------------------------------------------------------------------
 

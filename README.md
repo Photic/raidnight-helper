@@ -10,7 +10,7 @@ The in-game interface follows the language of the game client: English, German, 
 Paste a group layout from the website and the raid sorts itself into the planned groups.
 
 - Open the window with `/raidnight` (or `/rn`) and paste the layout into the field at the top with Ctrl+V. The groups fill in at once.
-- The layout shows as groups 1–8, with 1–4 above 5–8. Drag a name onto another name to swap the two, onto an empty slot to move it there, or to **Not on list** to take it off the list. Raid members who are not on the list wait in that column and can be dragged into a group. Names show in class colours with a role icon (tank, healer, melee or ranged), and grey while the player is not in the raid. A name that is in another group in the raid shows that group's number in orange. In a raid, the players you drag move in the raid at once, the same way Sort raid moves them (leader or assistant, and after combat when in combat); everyone else stays put until **Sort raid**, apart from someone who has to make room in a full group. Dragging while a sort runs adds the move to it.
+- The layout shows as groups 1–8, with 1–4 above 5–8. Drag a name onto another name to swap the two, onto an empty slot to move it there, or to **Not on list** to take it off the list. Raid members who are not on the list wait in that column and can be dragged into a group. So can names that are not in the raid: dropped on **Not on list**, they wait there in grey, and the layout keeps them. A name that is not in the raid comes off the list for good with a right-click and **Remove from list**, or by dragging it out of the window. Moving names that are not in the raid moves nobody in the raid. Names show in class colours with the role icon from the game's raid frames (tank, healer or damage), and grey while the player is not in the raid. A name that is in another group in the raid shows that group's number in orange. In a raid, the players you drag move in the raid at once, the same way Sort raid moves them (leader or assistant, and after combat when in combat); everyone else stays put until **Sort raid**, apart from someone who has to make room in a full group. Dragging while a sort runs adds the move to it.
 - Accepts plain text or the website's `RS1:` code.
 - A live preview shows how many players are in the wrong group, who on the list is not in the raid, and which names match more than one player.
 - **Sort raid** moves players one at a time and waits for each move to land before the next. Two players who are to trade groups swap in one move. Sorting pauses in combat and continues when combat ends. If the game rejects a move, that player stays put, the rest are sorted, and the summary names them.
@@ -83,7 +83,14 @@ Left: Brannoc Elowyn Fenwick Isolde Torvald Ashlyn
 Right: Corvain Dúnmir Ravéna Thessaly
 ```
 
-Any line with a colon and no group number starts a list. Each list fills groups of five in order, from the group after the last one used: Left takes groups 1 and 2 here, and Right group 3. With 14 names on each side, Left takes groups 1–3 and Right groups 4–6. Names can be split by spaces or commas, or go one per line under the list's name. Split by spaces, each word is a name, so a realm goes without spaces: `Elowyn-ArgentDawn`. A name with a number in it, such as `Team 2:`, still means group 2.
+Any line with a colon and no group number starts a list. Each list fills groups of five in order, from the group after the last one used: Left takes groups 1 and 2 here, and Right group 3. With 14 names on each side, Left takes groups 1–3 and Right groups 4–6. Names can be split by spaces or commas, or go one per line under the list's name. Split by spaces, each word is a name, so a realm goes without spaces: `Elowyn-ArgentDawn`.
+
+A `Not on list:` line holds the names that wait in **Not on list**, outside the groups. It is the one line with a colon that does not start a list. Boss layouts and **Send** keep it too.
+
+```
+Group 1: Brannoc, Elowyn, Fenwick
+Not on list: Isolde, Torvald
+``` A name with a number in it, such as `Team 2:`, still means group 2.
 
 #### Commands
 

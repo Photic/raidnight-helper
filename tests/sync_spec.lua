@@ -61,6 +61,8 @@ T("sync: layouts come through the encoding as they were", function()
     [102] = false,
     [103] = Layout(1),
     [104] = "Group 8: Torvald",
+    [105] = "Group 2: Isolde\nNot on list: Ashlyn, Fenwick-ArgentDawn",
+    [106] = "Not on list: Corvain",
   }
   local back = W.ns.DecodeLayouts(W.ns.EncodeLayouts(layouts))
   local n = 0
@@ -68,7 +70,7 @@ T("sync: layouts come through the encoding as they were", function()
     eq(text, layouts[id], "boss " .. id)
     n = n + 1
   end
-  eq(n, 4, "bosses")
+  eq(n, 6, "bosses")
   eq(W.ns.DecodeLayouts("not a push"), nil, "not a push")
   eq(W.ns.DecodeLayouts("Brannoc;101:AB"), nil, "index past the names")
 end)

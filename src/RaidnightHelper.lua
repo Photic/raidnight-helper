@@ -20,6 +20,9 @@
 -- Each list fills groups of five in order, from the group after the last one
 -- used: Left takes groups 1 and 2 here, and Right group 3.
 --
+-- A "Not on list:" line holds names that wait outside the groups, in the
+-- window's "Not on list" column, until they are dragged into a group.
+--
 -- Commands (/rn works as a short form):
 --   /raidnight         open/close the window
 --   /raidnight apply   sort by the last pasted layout (handy in a macro)
@@ -39,6 +42,7 @@ local L = ns.L
 local MAX_GROUPS   = 8
 local GROUP_SIZE   = 5
 local PREFIX       = "RS1:"
+local PARKED       = "Not on list" -- the text format's line for names that wait outside the groups
 local STEP_TIMEOUT = 1.0   -- seconds between checks for whether a move has landed
 local MAX_WAITS    = 5     -- checks without change before a move counts as rejected
 local MAX_FAILURES = 3     -- rejected moves in a row → give up
@@ -130,12 +134,36 @@ local function HomeRealm()
   if realm and not issecret(realm) and realm ~= "" then return RealmKey(realm) end
 end
 
+-- A lookup of names ([folded name] = { [realm or ""] = true }) that finds a
+-- player the way the list finds raid members: regardless of case and
+-- accents, and a name without a realm matches any realm.
+local function AddName(set, name)
+  local base, realm = SplitName(name)
+  local fold = Fold(base)
+  set[fold] = set[fold] or {}
+  set[fold][RealmKey(realm) or ""] = true
+end
+
+local function NameSet(names)
+  local set = {}
+  for _, name in ipairs(names) do AddName(set, name) end
+  return set
+end
+
+local function InNameSet(set, name)
+  local base, realm = SplitName(name)
+  local realms = set[Fold(base)]
+  if not realms then return false end
+  realm = RealmKey(realm)
+  return not realm or realms[""] or realms[realm] or false
+end
+
 ---------------------------------------------------------------------------
 -- Parsing
 ---------------------------------------------------------------------------
 
 local function NewPlan()
-  return { groups = {}, entries = {}, used = {}, errors = {}, warnings = {}, count = 0 }
+  return { groups = {}, entries = {}, used = {}, parked = {}, errors = {}, warnings = {}, count = 0 }
 end
 
 local function NormalizeText(text)
@@ -196,6 +224,7 @@ function ns.ParseText(text)
   local seen = {}
   local current, ignored = nil, 0
   local named, full = false, false -- in a named list; a named list ran past the last group
+  local parking, waiting = false, {} -- under "Not on list:"; the names there
 
   for line in NormalizeText(text):gmatch("[^\n]+") do
     line = Trim(line)
@@ -203,7 +232,7 @@ function ns.ParseText(text)
     local label, after
     if not num then label, after = line:match("^([^:,;\t]+):%s*(.*)$") end
     if num then
-      named = false
+      named, parking = false, false
       num = tonumber(num)
       if num >= 1 and num <= MAX_GROUPS then
         current = num
@@ -213,12 +242,16 @@ function ns.ParseText(text)
       end
       line = rest
     elseif label then
-      -- A named list ("Left: ..."): its first name decides its group.
-      current, named = nil, true
+      -- "Not on list:" holds names that wait outside the groups. Any other
+      -- label starts a named list ("Left: ..."): its first name decides its group.
+      parking = Trim(label):lower() == PARKED:lower()
+      current, named = nil, not parking
       line = after
     end
     if line ~= "" then
-      if current or named then
+      if parking then
+        SplitNames(line, waiting)
+      elseif current or named then
         local names = {}
         SplitNames(line, names)
         for _, name in ipairs(names) do
@@ -237,6 +270,17 @@ function ns.ParseText(text)
     end
   end
 
+  -- A name that waits in "Not on list" and is in a group too stays in the group.
+  local listed = {}
+  for _, e in ipairs(plan.entries) do listed[#listed + 1] = e.name end
+  local skip = NameSet(listed)
+  for _, name in ipairs(waiting) do
+    if not InNameSet(skip, name) then
+      AddName(skip, name)
+      table.insert(plan.parked, name)
+    end
+  end
+
   for g = 1, MAX_GROUPS do
     local list = plan.groups[g]
     if list and #list > GROUP_SIZE then
@@ -249,19 +293,29 @@ function ns.ParseText(text)
   if ignored > 0 then
     table.insert(plan.warnings, L["%d line(s) without a group number were ignored."]:format(ignored))
   end
-  if plan.count == 0 and #plan.errors == 0 then
+  if plan.count == 0 and #plan.parked == 0 and #plan.errors == 0 then
     table.insert(plan.errors, L['No groups found. Expected format: "Group 1: Name, Name, ..."'])
   end
   return plan
 end
 
--- The text format for groups[g] = { names }, as ParseText reads it.
-function ns.FormatLayout(groups)
-  local lines = {}
+-- The text format for groups[g] = { names }, as ParseText reads it, with the
+-- names in parked ({ names }) on a "Not on list:" line, apart from those that
+-- are in a group.
+function ns.FormatLayout(groups, parked)
+  local lines, listed = {}, {}
   for g = 1, MAX_GROUPS do
     if groups[g] and #groups[g] > 0 then
       lines[#lines + 1] = ("Group %d: %s"):format(g, table.concat(groups[g], ", "))
+      for _, name in ipairs(groups[g]) do listed[#listed + 1] = name end
     end
+  end
+  local inGroup, waiting = NameSet(listed), {}
+  for _, name in ipairs(parked or {}) do
+    if not InNameSet(inGroup, name) then waiting[#waiting + 1] = name end
+  end
+  if #waiting > 0 then
+    lines[#lines + 1] = ("%s: %s"):format(PARKED, table.concat(waiting, ", "))
   end
   return table.concat(lines, "\n")
 end
@@ -434,11 +488,22 @@ end
 -- ({ info, ... }). info is { name, group, class, role, locked }: the group
 -- they are in now, UnitClass's file name ("" when unknown), the role from
 -- Roles.lua and whether they are locked. Both are empty outside a raid.
+-- Also returns the names waiting in "Not on list" that are not in the raid
+-- ({ names }); the others are among the raid members not on the list.
 function ns.MatchRaid(plan)
-  local found, extras = {}, {}
-  if not IsInRaid() then return found, extras end
+  local found, extras, away = {}, {}, {}
+  if not IsInRaid() then
+    for _, name in ipairs(plan.parked) do away[#away + 1] = name end
+    return found, extras, away
+  end
   local members = ReadRoster()
   MatchPlan(plan, members)
+  local names = {}
+  for _, m in ipairs(members) do names[#names + 1] = m.name end
+  local inRaid = NameSet(names)
+  for _, name in ipairs(plan.parked) do
+    if not InNameSet(inRaid, name) then away[#away + 1] = name end
+  end
   local hasList = plan.count > 0
   for _, m in ipairs(members) do
     local unit = "raid" .. m.index
@@ -453,7 +518,7 @@ function ns.MatchRaid(plan)
       extras[#extras + 1] = info
     end
   end
-  return found, extras
+  return found, extras, away
 end
 
 -- Adds the players on the list who are not in the raid, and the names that
@@ -799,7 +864,7 @@ local function KeepResult(res, members)
   local groups = ns.RaidGroups()
   if not groups then return end
   AddMissing(groups, res)
-  local text = ns.FormatLayout(groups)
+  local text = ns.FormatLayout(groups, ns.ParseInput(GetDB().text).parked)
   if text == "" then return end
   if not runner.auto and text ~= GetDB().text then Remember() end
   KeepLocks(members)
@@ -988,15 +1053,16 @@ end
 -- list, locked or not. The layout has the moves already. Where a group is
 -- full, someone in it who is not in their planned group swaps places,
 -- preferring a player who is to go where the mover came from. A sort in
--- progress takes the moves on, so moves made one after another wait for each
--- other. Outside a raid it does nothing.
+-- progress takes the layout and the moves on, so moves made one after another
+-- wait for each other. Outside a raid it does nothing.
 function ns.MoveInRaid(moves)
-  if not IsInRaid() or next(moves) == nil then return end
+  if not IsInRaid() then return end
   if runner.active then
     runner.plan = ns.ParseInput(GetDB().text)
     AddMoves(moves)
     return
   end
+  if next(moves) == nil then return end
   ns.Apply(GetDB().text, false, moves)
 end
 
@@ -1014,11 +1080,12 @@ function ns.Auto()
   end
   ns.CheckSpecs(function()
     local members = ReadRoster()
-    local res = MatchPlan(ns.ParseInput(GetDB().text), members)
+    local plan = ns.ParseInput(GetDB().text)
+    local res = MatchPlan(plan, members)
     local groups, guessed = ns.AutoLayout(members)
     -- Players on the list who are not in the raid stay on it.
     AddMissing(groups, res)
-    local text = ns.FormatLayout(groups)
+    local text = ns.FormatLayout(groups, plan.parked)
     Remember()
     wipe(locks)
     SetLayoutText(text)
@@ -1126,7 +1193,7 @@ function ns.Balance()
     Print(L["After: groups %s %d%%, groups %s %d%%."]:format(first, Percent(after[1]), second, Percent(after[2])))
     -- Players on the list who are not in the raid stay on it.
     AddMissing(groups, res)
-    local text = ns.FormatLayout(groups)
+    local text = ns.FormatLayout(groups, plan.parked)
     Remember()
     KeepLocks(members)
     SetLayoutText(text)
@@ -1158,7 +1225,7 @@ function ns.SwapHalves()
     groups[a], groups[b] = groups[b], groups[a]
     first[i], second[i] = a, b
   end
-  ns.SetLayout(ns.FormatLayout(groups))
+  ns.SetLayout(ns.FormatLayout(groups, plan.parked))
   Print(L["Groups %s and %s traded places."]:format(table.concat(first, "+"), table.concat(second, "+")))
 end
 
@@ -1208,7 +1275,7 @@ local function Import(raw)
     return
   end
   for _, w in ipairs(plan.warnings) do Print(w) end
-  ns.SetLayout(ns.FormatLayout(plan.groups))
+  ns.SetLayout(ns.FormatLayout(plan.groups, plan.parked))
 end
 
 function ns.CreateUI()

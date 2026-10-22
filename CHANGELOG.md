@@ -6,6 +6,16 @@
 
 - Lists with a name of their own, such as `Left: ...` and `Right: ...`, can be pasted. Each list fills groups of five in order, so with 14 names on each side, Left takes groups 1–3 and Right groups 4–6.
 - **Swap halves** (or `/raidnight swap`) trades the two halves of the groups that play in the layout: groups 1–3 with 4–6, or 1+2 with 3+4. While the raid is still forming, it uses the halves the raid will have once everyone on the list is in, so the sides stay together. The raid stays as it is until **Sort raid**.
+- A name on the list that is not in the raid can be taken off it: right-click it and pick **Remove from list**, or drag it out of the window.
+- Names that are not in the raid can wait in **Not on list**: drop them there and they stay, in grey, until you drag them back into a group. The layout keeps them on a `Not on list:` line, so boss layouts and **Send** keep them too.
+
+### Changed
+
+- The group grid shows the role icons of the game's raid frames: tank, healer and damage. Melee and ranged share the damage icon, as they do there.
+
+### Fixed
+
+- Dropping a name that is not in the raid on **Not on list** no longer takes it off the list without a trace, and moving such names no longer tries to move anyone in the raid.
 
 ## [1.1.0] - 2026-10-22
 
