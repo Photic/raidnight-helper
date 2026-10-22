@@ -23,6 +23,10 @@
 -- A "Not on list:" line holds names that wait outside the groups, in the
 -- window's "Not on list" column, until they are dragged into a group.
 --
+-- A boss note from the website ("EncounterID:...;Difficulty:...", see
+-- Notes.lua) gives the groups from its first block of lists. Pasted, it also
+-- selects its boss and difficulty in the boss row and is saved under them.
+--
 -- Commands (/rn works as a short form):
 --   /raidnight         open/close the window
 --   /raidnight apply   sort by the last pasted layout (handy in a macro)
@@ -31,6 +35,9 @@
 --   /raidnight swap    trade the two halves of the groups that play in the layout
 --   /raidnight invite  invite players on the list who are not in the raid
 --   /raidnight send    send the boss layouts of the raid in the dropdown to the raid (see Sync.lua)
+--   /raidnight normal  show the Normal boss layouts (also heroic, mythic; see BossLayouts.lua)
+--   /raidnight note    open/close the boss note window (see NoteWindow.lua)
+--   /raidnight note apply  make the boss note's groups the layout, as Apply in that window does
 --   /raidnight stop    stop a sort in progress
 --
 -- Player-facing text goes through L (see Locales.lua).
@@ -49,7 +56,7 @@ local MAX_FAILURES = 3     -- rejected moves in a row → give up
 local STEP_DELAY   = 0.1   -- short pause after a roster update before the next move
 local MAX_STEPS    = 150   -- safety stop
 
-local DEFAULTS = { text = "", moveExtras = true, autoSave = true }
+local DEFAULTS = { text = "", moveExtras = true, autoSave = true, difficulty = "mythic" }
 local DB
 
 local function GetDB() return DB or DEFAULTS end
@@ -123,6 +130,12 @@ local function SplitName(name)
   return base, realm
 end
 
+-- The name without its realm, regardless of case and accents: "Ravéna-Draenor"
+-- and "ravena" give the same key.
+function ns.NameKey(name)
+  return Fold((SplitName(name)))
+end
+
 local function RealmKey(realm)
   if not realm then return nil end
   return (realm:gsub("[%s'%-]", ""):lower())
@@ -162,8 +175,11 @@ end
 -- Parsing
 ---------------------------------------------------------------------------
 
+-- lists holds the named lists in order as { label, line }, line being the
+-- list's line among the text's non-empty lines; an entry's list is its
+-- named list's place in lists, nil for a name under a group number.
 local function NewPlan()
-  return { groups = {}, entries = {}, used = {}, parked = {}, errors = {}, warnings = {}, count = 0 }
+  return { groups = {}, entries = {}, used = {}, parked = {}, lists = {}, errors = {}, warnings = {}, count = 0 }
 end
 
 local function NormalizeText(text)
@@ -194,7 +210,7 @@ local function SplitNames(s, out)
   end
 end
 
-local function AddEntry(plan, seen, group, name)
+local function AddEntry(plan, seen, group, name, list)
   local base, realm = SplitName(name)
   local key = base:lower() .. "-" .. (RealmKey(realm) or "")
   if seen[key] then
@@ -205,7 +221,7 @@ local function AddEntry(plan, seen, group, name)
   plan.groups[group] = plan.groups[group] or {}
   table.insert(plan.groups[group], name)
   table.insert(plan.entries, {
-    name = name, group = group, base = base:lower(), fold = Fold(base), realm = RealmKey(realm),
+    name = name, group = group, base = base:lower(), fold = Fold(base), realm = RealmKey(realm), list = list,
   })
   plan.used[group] = true
   plan.count = plan.count + 1
@@ -225,14 +241,16 @@ function ns.ParseText(text)
   local current, ignored = nil, 0
   local named, full = false, false -- in a named list; a named list ran past the last group
   local parking, waiting = false, {} -- under "Not on list:"; the names there
+  local list, n = nil, 0 -- the named list's place in plan.lists; the line's number
 
   for line in NormalizeText(text):gmatch("[^\n]+") do
+    n = n + 1
     line = Trim(line)
     local _, num, rest = line:match("^([%a%s%.#]*)(%d+)%s*[:%.%)%-]?%s*(.*)$")
     local label, after
     if not num then label, after = line:match("^([^:,;\t]+):%s*(.*)$") end
     if num then
-      named, parking = false, false
+      named, parking, list = false, false, nil
       num = tonumber(num)
       if num >= 1 and num <= MAX_GROUPS then
         current = num
@@ -245,7 +263,11 @@ function ns.ParseText(text)
       -- "Not on list:" holds names that wait outside the groups. Any other
       -- label starts a named list ("Left: ..."): its first name decides its group.
       parking = Trim(label):lower() == PARKED:lower()
-      current, named = nil, not parking
+      current, named, list = nil, not parking, nil
+      if named then
+        table.insert(plan.lists, { label = Trim(label), line = n })
+        list = #plan.lists
+      end
       line = after
     end
     if line ~= "" then
@@ -262,7 +284,7 @@ function ns.ParseText(text)
             full = true
             break
           end
-          AddEntry(plan, seen, current, name)
+          AddEntry(plan, seen, current, name, list)
         end
       elseif not num then
         ignored = ignored + 1
@@ -320,12 +342,20 @@ function ns.FormatLayout(groups, parked)
   return table.concat(lines, "\n")
 end
 
--- Accepts "RS1:<base64>", bare base64 or plain text.
+-- Accepts "RS1:<base64>", bare base64, plain text or a boss note. For a
+-- note, plan.note is the note (see ns.ParseNote).
 function ns.ParseInput(raw)
   local s = Trim(raw or "")
   if s == "" then
     local plan = NewPlan()
     plan.empty = true
+    return plan
+  end
+
+  local note = ns.ParseNote(s)
+  if note then
+    local plan = ns.ParseText(note.groups)
+    plan.source, plan.note = "text", note
     return plan
   end
 
@@ -814,32 +844,39 @@ local function Summary(plan, res, members)
 end
 
 -- Replaces the layout text, without a preview replacing the status line.
+-- The boss note follows it.
 local function SetLayoutText(text)
   GetDB().text = text
+  ns.UpdateNote()
   ns.RefreshGrid()
   previewToken = previewToken + 1
 end
 
--- Replaces the layout text and previews it.
+-- Replaces the layout text and previews it. The boss note follows it.
 function ns.SetLayout(text)
   GetDB().text = text
+  ns.UpdateNote()
   ns.RefreshGrid()
   ns.SchedulePreview()
 end
 
--- What Undo brings back: the layout and the locks from before Auto, Balance
--- or filling open slots last replaced the layout, and with auto-save on, the
--- selected boss's saved layout from then.
+-- What Undo brings back: the layout, the boss note and the locks from before
+-- Auto, Balance, filling open slots or a pasted boss note last replaced the
+-- layout, and the selected boss's saved layout from then, at the difficulty
+-- the boss row showed. The boss's layout is kept with auto-save on, or when
+-- saving is true, as for a note, which is saved under its boss at once.
 local undo, undoButton
 
 local function UpdateUndo()
   if undoButton then undoButton:SetEnabled(undo ~= nil) end
 end
 
-local function Remember()
-  undo = { text = GetDB().text, locks = {} }
+local function Remember(saving)
+  undo = { text = GetDB().text, note = GetDB().note, locks = {} }
   for name, locked in pairs(locks) do undo.locks[name] = locked end
-  if GetDB().autoSave then undo.boss, undo.layout = ns.SelectedBossLayout() end
+  if saving or GetDB().autoSave then
+    undo.boss, undo.difficulty, undo.layout = ns.SelectedBossLayout()
+  end
   UpdateUndo()
 end
 
@@ -851,7 +888,8 @@ function ns.Undo()
   undo = nil
   wipe(locks)
   for name, locked in pairs(u.locks) do locks[name] = locked end
-  if u.boss then ns.RestoreBossLayout(u.boss, u.layout) end
+  if u.boss then ns.RestoreBossLayout(u.boss, u.difficulty, u.layout) end
+  GetDB().note = u.note
   ns.SetLayout(u.text)
   UpdateUndo()
 end
@@ -1266,16 +1304,31 @@ end
 ns.MakeButton = MakeButton
 
 -- Makes text or a code from the website the layout. The grid writes the
--- layout as plain text, so it is stored that way from the start.
-local function Import(raw)
+-- layout as plain text, so it is stored that way from the start. A boss note
+-- becomes the working note too, selects its boss and difficulty and is
+-- saved under them at once; Undo brings back the layout, the note and the
+-- boss's saved layout from before. Returns the plan, with its errors when
+-- the layout stayed as it was.
+function ns.Import(raw)
   local plan = ns.ParseInput(raw)
-  if plan.empty then return end
+  if plan.empty then return plan end
   if #plan.errors > 0 then
     ns.SetStatus("|cffff5555" .. table.concat(plan.errors, "\n") .. "|r")
-    return
+    return plan
   end
   for _, w in ipairs(plan.warnings) do Print(w) end
-  ns.SetLayout(ns.FormatLayout(plan.groups, plan.parked))
+  local text = ns.FormatLayout(plan.groups, plan.parked)
+  local note = plan.note
+  if note and ns.SelectEncounter(note.encounter, note.difficulty) then
+    Remember(true)
+    GetDB().note = (Trim(raw):gsub("\r\n?", "\n"))
+    ns.SaveToSelectedBoss(text)
+  elseif note then
+    GetDB().note = (Trim(raw):gsub("\r\n?", "\n"))
+    Print(L["%s is not a boss in this tier's raids. The groups are loaded but not saved."]:format(note.name or note.encounter))
+  end
+  ns.SetLayout(text)
+  return plan
 end
 
 function ns.CreateUI()
@@ -1333,7 +1386,7 @@ function ns.CreateUI()
       if token ~= pasteToken then return end
       local text = self:GetText()
       self:SetText("")
-      Import(text)
+      ns.Import(text)
     end)
   end)
   sf:SetScrollChild(eb)
@@ -1391,7 +1444,9 @@ function ns.CreateUI()
 
   local clear = MakeButton(f, L["Clear"], 70)
   clear:SetPoint("BOTTOMLEFT", 12, 12)
+  -- The boss note goes too, so its lists and timeline keep their players.
   clear:SetScript("OnClick", function()
+    GetDB().note = nil
     ns.SetLayout("")
     eb:SetFocus()
   end)
@@ -1489,6 +1544,12 @@ SlashCmdList.RAIDNIGHT = function(msg)
     ns.InviteMissing(GetDB().text)
   elseif msg == "send" then
     ns.SendLayouts()
+  elseif ns.DifficultyName(msg) then
+    ns.SelectDifficulty(msg)
+  elseif msg == "note" then
+    ns.ToggleNote()
+  elseif msg == "note apply" then
+    ns.ApplyNote()
   elseif msg == "stop" then
     ns.StopSorting()
   else

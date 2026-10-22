@@ -46,13 +46,19 @@ local function Push()
   return table.concat(parts)
 end
 
--- Lead sends layouts; then the test goes on as Me, with saved layouts mine.
+-- The Mythic layouts saved on this side: the row shows Mythic unless a
+-- test picks another difficulty.
+local function Mine()
+  return W.ns.GetDB().layouts.mythic
+end
+
+-- Lead sends layouts; then the test goes on as Me, with saved Mythic layouts mine.
 local function LeadSends(layouts, mine)
   W.me = "Lead"
   W.ns.SetBossLayouts(layouts)
   W.ns.SendLayouts()
   W.me = "Me"
-  W.ns.GetDB().bosses = mine or {}
+  W.ns.GetDB().layouts = { mythic = mine or {} }
 end
 
 T("sync: layouts come through the encoding as they were", function()
@@ -64,7 +70,8 @@ T("sync: layouts come through the encoding as they were", function()
     [105] = "Group 2: Isolde\nNot on list: Ashlyn, Fenwick-ArgentDawn",
     [106] = "Not on list: Corvain",
   }
-  local back = W.ns.DecodeLayouts(W.ns.EncodeLayouts(layouts))
+  local back, difficulty = W.ns.DecodeLayouts(W.ns.EncodeLayouts(layouts, "heroic"))
+  eq(difficulty, "heroic", "difficulty")
   local n = 0
   for id, text in pairs(back) do
     eq(text, layouts[id], "boss " .. id)
@@ -72,7 +79,9 @@ T("sync: layouts come through the encoding as they were", function()
   end
   eq(n, 6, "bosses")
   eq(W.ns.DecodeLayouts("not a push"), nil, "not a push")
-  eq(W.ns.DecodeLayouts("Brannoc;101:AB"), nil, "index past the names")
+  eq(W.ns.DecodeLayouts("heroic;Brannoc;101:AB"), nil, "index past the names")
+  eq(W.ns.DecodeLayouts("Brannoc;101:A"), nil, "no difficulty, as version 1 sent")
+  eq(W.ns.DecodeLayouts("raidfinder;Brannoc;101:A"), nil, "a difficulty without layouts")
 end)
 
 T("sync: a push replaces the raid's layouts and leaves other raids alone", function()
@@ -80,14 +89,14 @@ T("sync: a push replaces the raid's layouts and leaves other raids alone", funct
   Raid()
   LeadSends({ [101] = Layout(1), [105] = Layout(3) },
     { [101] = { text = "Group 1: Old" }, [102] = { text = "Group 1: Old" }, [201] = { text = "Group 1: Small" } })
-  ok(Printed("Sent the boss layouts for Big Raid to the raid."), "sender told")
+  ok(Printed("Sent the boss layouts for Big Raid (Mythic) to the raid."), "sender told")
   W.Deliver("Lead-Home")
-  local bosses = W.ns.GetDB().bosses
+  local bosses = Mine()
   eq(bosses[101].text, Layout(1), "101 replaced")
   eq(bosses[105].text, Layout(3), "105 added")
   eq(bosses[102], nil, "102 cleared: the sender has none")
   eq(bosses[201].text, "Group 1: Small", "the other raid stays")
-  ok(Printed("Received boss layouts from Lead."), "receiver told")
+  ok(Printed("Received boss layouts (Mythic) from Lead."), "receiver told")
 end)
 
 T("sync: all bosses of a big raid fit in 3 messages", function()
@@ -100,21 +109,21 @@ T("sync: all bosses of a big raid fit in 3 messages", function()
   for i, m in ipairs(W.sent) do
     eq(m.prefix, "RaidnightHelper", "prefix")
     eq(m.channel, "RAID", "channel")
-    ok(m.text:find("^1:" .. i .. "/" .. #W.sent .. ":"), "header " .. m.text:sub(1, 8))
+    ok(m.text:find("^2:" .. i .. "/" .. #W.sent .. ":"), "header " .. m.text:sub(1, 8))
   end
   W.Deliver("Lead")
-  for id, text in pairs(layouts) do eq(W.ns.GetDB().bosses[id].text, text, "boss " .. id) end
+  for id, text in pairs(layouts) do eq(Mine()[id].text, text, "boss " .. id) end
 end)
 
 T("sync: a part never ends inside a character", function()
   Journal()
   Raid()
-  -- Names of an ASCII letter and 2-byte letters, so a cut after 240 bytes
+  -- Names of two ASCII letters and 2-byte letters, so a cut after 240 bytes
   -- would fall inside one.
   local names = {}
-  for i = 1, 20 do names[i] = string.char(64 + i) .. ("é"):rep(6) end
+  for i = 1, 20 do names[i] = string.char(64 + i, 96 + i) .. ("é"):rep(8) end
   local layouts = { [101] = Layout(1, names) }
-  local byte = W.ns.EncodeLayouts(layouts):byte(241)
+  local byte = W.ns.EncodeLayouts(layouts, "mythic"):byte(241)
   ok(byte >= 128 and byte < 192, "byte 241 continues a character")
   LeadSends(layouts)
   ok(#W.sent >= 2, "more than one part")
@@ -123,7 +132,7 @@ T("sync: a part never ends inside a character", function()
     ok(not (first >= 128 and first < 192), "part starts inside a character")
   end
   W.Deliver("Lead")
-  eq(W.ns.GetDB().bosses[101].text, layouts[101], "names whole")
+  eq(Mine()[101].text, layouts[101], "names whole")
 end)
 
 T("sync: only the raid leader and assistants are listened to", function()
@@ -132,16 +141,16 @@ T("sync: only the raid leader and assistants are listened to", function()
   LeadSends({ [101] = Layout(1) })
   local push = W.sent
   W.Deliver("Pug")
-  eq(W.ns.GetDB().bosses[101], nil, "not from a member")
+  eq(Mine()[101], nil, "not from a member")
   W.Deliver("Stranger")
-  eq(W.ns.GetDB().bosses[101], nil, "not from someone outside the raid")
+  eq(Mine()[101], nil, "not from someone outside the raid")
   local whispers = {}
   for i, m in ipairs(push) do whispers[i] = { prefix = m.prefix, text = m.text, channel = "WHISPER" } end
   W.Deliver("Lead", whispers)
-  eq(W.ns.GetDB().bosses[101], nil, "not as a whisper")
+  eq(Mine()[101], nil, "not as a whisper")
   W.roster[3].rank = 1
   W.Deliver("Pug")
-  eq(W.ns.GetDB().bosses[101].text, Layout(1), "from an assistant")
+  eq(Mine()[101].text, Layout(1), "from an assistant")
 end)
 
 T("sync: the sender's own push does not come back in", function()
@@ -150,9 +159,9 @@ T("sync: the sender's own push does not come back in", function()
   W.me = "Lead"
   W.ns.SetBossLayouts({ [101] = Layout(1) })
   W.ns.SendLayouts()
-  W.ns.GetDB().bosses = {}
+  W.ns.GetDB().layouts = { mythic = {} }
   W.Deliver("Lead")
-  eq(W.ns.GetDB().bosses[101], nil, "own push ignored")
+  eq(Mine()[101], nil, "own push ignored")
   ok(not Printed("Received"), "nothing received")
 end)
 
@@ -168,11 +177,11 @@ T("sync: a push missing a part is dropped, and sending again lands", function()
   local sent = W.sent
   eq(#sent, 3, "three parts")
   W.Deliver("Lead", { sent[2], sent[3] })
-  eq(next(W.ns.GetDB().bosses), nil, "nothing without part 1")
+  eq(next(Mine()), nil, "nothing without part 1")
   W.Deliver("Lead", { sent[1], sent[3] })
-  eq(next(W.ns.GetDB().bosses), nil, "nothing without part 2")
+  eq(next(Mine()), nil, "nothing without part 2")
   W.Deliver("Lead", sent)
-  eq(W.ns.GetDB().bosses[101].text, layouts[101], "the whole push lands")
+  eq(Mine()[101].text, layouts[101], "the whole push lands")
 end)
 
 T("sync: sending is refused outside a raid, in Raid Finder, without lead and in combat", function()
@@ -220,7 +229,7 @@ end)
 
 T("sync: a push from a newer version asks to update", function()
   Raid()
-  W.Deliver("Lead", { { prefix = "RaidnightHelper", text = "2:1/1:anything", channel = "RAID" } })
+  W.Deliver("Lead", { { prefix = "RaidnightHelper", text = "3:1/1:anything", channel = "RAID" } })
   ok(Printed("Lead sent layouts from a newer version of Raidnight Helper."), "update hint")
 end)
 
@@ -243,7 +252,7 @@ T("ui: Send uses the raid shown, /rn send the raid the window opens on", functio
   -- Inside Big Raid now, but the window still shows Small Raid.
   W.here = 1
   send.scripts.OnClick(send)
-  ok(Printed("Sent the boss layouts for Small Raid to the raid."), "the raid shown")
+  ok(Printed("Sent the boss layouts for Small Raid (Mythic) to the raid."), "the raid shown")
   local layouts = W.ns.DecodeLayouts(Push())
   eq(layouts[201], Layout(2), "Small Raid's boss")
   eq(layouts[101], nil, "not Big Raid's")
@@ -252,6 +261,6 @@ T("ui: Send uses the raid shown, /rn send the raid the window opens on", functio
   W.sent = {}
   W.visible = false
   SlashCmdList.RAIDNIGHT("send")
-  ok(Printed("Sent the boss layouts for Big Raid to the raid."), "the raid the player is in")
+  ok(Printed("Sent the boss layouts for Big Raid (Mythic) to the raid."), "the raid the player is in")
   eq(W.ns.DecodeLayouts(Push())[101], Layout(1), "Big Raid's boss")
 end)

@@ -1,29 +1,30 @@
 -- Sync
--- Send, in the boss row, sends the boss layouts of the raid in the dropdown to
--- everyone in the raid with Raidnight Helper. Only the raid leader and
--- assistants can send, and a push replaces the receivers' layouts for that
--- raid's bosses: bosses the sender has nothing saved for are cleared.
+-- Send, in the boss row, sends the boss layouts of the raid in the dropdown,
+-- for the difficulty the row shows, to everyone in the raid with Raidnight
+-- Helper. Only the raid leader and assistants can send, and a push replaces
+-- the receivers' layouts for that raid's bosses at that difficulty: bosses
+-- the sender has nothing saved for are cleared.
 --
--- The names repeat from boss to boss, so a push lists each player once and
+-- A push starts with its difficulty ("normal", "heroic" or "mythic"). The
+-- names repeat from boss to boss, so a push lists each player once and
 -- gives each boss as one character per player: the player's place in that
 -- list (A = 1st, B = 2nd, ...). "." splits the groups, in order, so an empty
 -- group keeps its place:
 --
---   <name>,<name>,...;<boss>:<groups>;<boss>:<groups>;...
---   Brannoc,Elowyn,Fenwick-ArgentDawn;2901:AB.C;2902:;2903:..CA
+--   <difficulty>;<name>,<name>,...;<boss>:<groups>;<boss>:<groups>;...
+--   heroic;Brannoc,Elowyn,Fenwick-ArgentDawn;2901:AB.C;2902:;2903:..CA
 --
--- After group 8 comes a ninth field with the names waiting in "Not on list";
--- versions before it read groups 1-8 and leave the rest.
+-- After group 8 comes a ninth field with the names waiting in "Not on list".
 --
 -- Bosses are journal encounter IDs, the same in every client language.
 -- An addon message holds 255 bytes, so a push goes out in parts, each one
--- starting with the format version and its number: "1:2/3:<part>".
+-- starting with the format version and its number: "2:2/3:<part>".
 
 local _, ns = ...
 local L = ns.L
 
 local PREFIX     = "RaidnightHelper"
-local VERSION    = 1
+local VERSION    = 2     -- 1 had no difficulty
 local PART_SIZE  = 240   -- bytes of a push per message; the header needs the rest
 local MAX_GROUPS = 8
 local INDEX      = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-"
@@ -50,8 +51,8 @@ end
 ---------------------------------------------------------------------------
 
 -- The push for layouts = { [journalID] = text or false }, as ns.RaidLayouts
--- gives them. Returns nil and a message when it can't be sent.
-function ns.EncodeLayouts(layouts)
+-- gives them, at difficulty. Returns nil and a message when it can't be sent.
+function ns.EncodeLayouts(layouts, difficulty)
   local ids = {}
   for id in pairs(layouts) do ids[#ids + 1] = id end
   table.sort(ids)
@@ -81,18 +82,18 @@ function ns.EncodeLayouts(layouts)
   if #names > #INDEX then
     return nil, L["Too many players in the layouts to send (max %d)."]:format(#INDEX)
   end
-  return table.concat(names, ",") .. ";" .. table.concat(bosses, ";")
+  return difficulty .. ";" .. table.concat(names, ",") .. ";" .. table.concat(bosses, ";")
 end
 
--- The layouts of a push, in the shape ns.EncodeLayouts takes them, or nil if
--- the text is not a push.
+-- The layouts of a push and their difficulty, in the shape ns.EncodeLayouts
+-- takes them, or nil if the text is not a push.
 function ns.DecodeLayouts(text)
   local fields = Split(text, ";")
-  if #fields < 2 then return nil end
-  local names = fields[1] == "" and {} or Split(fields[1], ",")
+  if #fields < 3 or not ns.DifficultyName(fields[1]) then return nil end
+  local names = fields[2] == "" and {} or Split(fields[2], ",")
 
   local layouts = {}
-  for i = 2, #fields do
+  for i = 3, #fields do
     local id, list = fields[i]:match("^(%d+):(.*)$")
     if not id then return nil end
     local groups = {}
@@ -109,7 +110,7 @@ function ns.DecodeLayouts(text)
     local layout = ns.FormatLayout(groups, groups[MAX_GROUPS + 1])
     layouts[tonumber(id)] = layout ~= "" and layout
   end
-  return layouts
+  return layouts, fields[1]
 end
 
 -- text in pieces of at most PART_SIZE bytes. A piece never ends inside a
@@ -161,7 +162,8 @@ function ns.SendLayouts()
     return
   end
 
-  local text, err = ns.EncodeLayouts(ns.RaidLayouts(raid.id))
+  local difficulty, difficultyName = ns.SelectedDifficulty()
+  local text, err = ns.EncodeLayouts(ns.RaidLayouts(raid.id, difficulty), difficulty)
   if not text then
     ns.Print(err)
     return
@@ -174,7 +176,7 @@ function ns.SendLayouts()
       return
     end
   end
-  ns.Print(L["Sent the boss layouts for %s to the raid."]:format(raid.name))
+  ns.Print(L["Sent the boss layouts for %s to the raid."]:format(("%s (%s)"):format(raid.name, difficultyName)))
 end
 
 ---------------------------------------------------------------------------
@@ -197,10 +199,10 @@ local incoming = {}
 
 local function Receive(sender, text)
   if not CanSend(sender) then return end
-  local layouts = ns.DecodeLayouts(text)
+  local layouts, difficulty = ns.DecodeLayouts(text)
   if not layouts then return end
-  ns.SetBossLayouts(layouts)
-  ns.Print(L["Received boss layouts from %s."]:format(sender))
+  ns.SetBossLayouts(layouts, difficulty)
+  ns.Print(L["Received boss layouts (%s) from %s."]:format(ns.DifficultyName(difficulty), sender))
 end
 
 local function OnMessage(prefix, msg, channel, sender)

@@ -47,7 +47,10 @@ function NewFrame(parent)
   f.SetEnabled = function(self, e) self.enabled = e end
   f.SetShown = function(self, s) self.shown = s end
   f.SetAtlas = function(self, a) self.atlas_ = a end
+  f.SetChecked = function(self, c) self.checked = c end
+  f.GetChecked = function(self) return self.checked end
   f.GetTextWidth = function() return 40 end
+  f.GetStringWidth = function() return 40 end
   f.GetWidth = function() return 100 end
   -- W.mouseOver is the frame under the mouse, or nil for none of the addon's.
   f.IsMouseOver = function(self) return W.mouseOver == self end
@@ -73,14 +76,17 @@ function GetRaidRosterInfo(i)
   local p = W.roster[i]
   if p then return p.name, p.rank or 0, p.group end
 end
--- The instance the player is in: W.instance = { kind = "raid", maxPlayers = 20 },
--- or nil outside one. W.InRaid(maxPlayers) enters a raid instance.
+-- The instance the player is in: W.instance = { kind = "raid", maxPlayers = 20,
+-- difficultyID = 16 }, or nil outside one. W.InRaid(maxPlayers, difficultyID)
+-- enters a raid instance, Mythic (16) if no difficulty is given.
 function GetInstanceInfo()
   local i = W.instance
   if not i then return "World", "none", 0, "", 0 end
-  return "Raid", i.kind, 16, "Mythic", i.maxPlayers
+  return "Raid", i.kind, i.difficultyID or 16, "", i.maxPlayers
 end
-function W.InRaid(maxPlayers) W.instance = { kind = "raid", maxPlayers = maxPlayers } end
+function W.InRaid(maxPlayers, difficultyID)
+  W.instance = { kind = "raid", maxPlayers = maxPlayers, difficultyID = difficultyID }
+end
 -- The player leads the raid unless W.lead is false.
 function UnitIsGroupLeader() return W.lead ~= false end
 function UnitIsGroupAssistant() return W.lead ~= false end
@@ -213,6 +219,9 @@ MenuUtil = { CreateContextMenu = function(owner, generator)
   W.menu = menu
 end }
 YES, NO = "Yes", "No"
+PLAYER_DIFFICULTY1, PLAYER_DIFFICULTY2, PLAYER_DIFFICULTY6 = "Normal", "Heroic", "Mythic"
+-- The last popup shown: W.popup = { name, text, data }.
+function StaticPopup_Show(name, text, _, data) W.popup = { name = name, text = text, data = data } end
 LE_PARTY_CATEGORY_INSTANCE = 2
 
 -- The server: a move lands after MOVE_DELAY, unless the group is full by then

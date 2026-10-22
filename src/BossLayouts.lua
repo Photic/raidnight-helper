@@ -1,15 +1,28 @@
 -- BossLayouts
 -- A row of boss icons at the top of the Raidnight Helper window. Each boss keeps one
--- layout: Save stores the current layout under the selected boss, and clicking
+-- layout per difficulty: Save stores the current layout under the selected boss, and clicking
 -- a boss loads its layout back into the grid. A pull selects that boss, and
 -- with auto-save on, it also stores the raid's actual groups under it. Send
 -- shares the raid's layouts with the rest of the raid (see Sync.lua).
 --
--- Bosses come from the Encounter Journal, so the row follows the current tier
--- without hardcoded names. Layouts are keyed by journal encounter ID, which is
--- the same in every client language, and live in RaidnightHelperDB.bosses:
+-- Each difficulty (Normal, Heroic, Mythic) has layouts of its own. Radio
+-- buttons next to the dropdown pick the difficulty the row shows; the icons,
+-- Save, Delete and Send work on that one. Opening the window inside a raid,
+-- or a pull, picks the raid's difficulty.
 --
---   [journalEncounterID] = { text = "Group 1: ...", saved = <time()>, pull = true|nil }
+-- Bosses come from the Encounter Journal, so the row follows the current tier
+-- without hardcoded names. Layouts are keyed by difficulty and journal
+-- encounter ID, which is the same in every client language, and live in
+-- RaidnightHelperDB.layouts:
+--
+--   [difficulty][journalEncounterID] = { text = "Group 1: ...", saved = <time()>, pull = true|nil,
+--                                        note = <boss note>|nil }
+--
+-- difficulty is "normal", "heroic" or "mythic", and RaidnightHelperDB.difficulty
+-- is the one the row shows. Layouts saved before there were difficulties
+-- are Mythic ones. A layout keeps the boss note it came from (see
+-- NoteWindow.lua), and whatever changes the layout's groups rewrites the
+-- note's groups to match.
 --
 -- RaidnightHelperDB.lastBoss = { raid = journalInstanceID, boss = journalEncounterID }
 -- remembers the boss pulled last, so it is selected again after a reload.
@@ -21,15 +34,45 @@ local ICON_WIDTH   = 64   -- journal boss portraits are twice as wide as tall
 local ICON_GAP     = 6
 local DEFAULT_ICON = "Interface\\EncounterJournal\\UI-EJ-BOSS-Default"
 
+-- The difficulties with layouts, in the order of the radio buttons, with the
+-- game's names for them and the difficulty IDs the game gives raids.
+local DIFFICULTIES     = { "normal", "heroic", "mythic" }
+local DIFFICULTY_NAMES = { normal = PLAYER_DIFFICULTY1, heroic = PLAYER_DIFFICULTY2, mythic = PLAYER_DIFFICULTY6 }
+local DIFFICULTY_IDS   = { [14] = "normal", [15] = "heroic", [16] = "mythic" }
+
 -- Midnight can return "secret values" for some unit data; we leave those alone.
 local issecret = issecretvalue or function() return false end
 
-local bar = { raids = {}, bosses = {}, buttons = {} }
+local bar = { raids = {}, bosses = {}, buttons = {}, radios = {} }
 
-local function Layouts()
+-- The game's name for difficulty ("normal", "heroic" or "mythic"), or nil
+-- for anything else.
+function ns.DifficultyName(difficulty)
+  return DIFFICULTY_NAMES[difficulty]
+end
+
+-- The difficulty the row shows.
+local function Difficulty()
+  return ns.GetDB().difficulty
+end
+
+-- The saved layouts for difficulty, or for the one the row shows.
+local function Layouts(difficulty)
   local db = ns.GetDB()
-  db.bosses = db.bosses or {}
-  return db.bosses
+  if not db.layouts then
+    -- Layouts saved before there were difficulties are Mythic ones.
+    db.layouts = { mythic = db.bosses }
+    db.bosses = nil
+  end
+  difficulty = difficulty or Difficulty()
+  db.layouts[difficulty] = db.layouts[difficulty] or {}
+  return db.layouts[difficulty]
+end
+
+-- A boss's name with a difficulty, the one the row shows if not given:
+-- "Vexmora (Heroic)".
+local function BossLabel(boss, difficulty)
+  return ("%s (%s)"):format(boss.name, DIFFICULTY_NAMES[difficulty or Difficulty()])
 end
 
 local function SelectedBoss()
@@ -85,6 +128,23 @@ local function CurrentInstance()
   if id and id ~= 0 then return id end
 end
 
+-- The difficulty of the raid the player is in: nil outside a raid, and in
+-- Raid Finder and other difficulties without layouts.
+local function InstanceDifficulty()
+  local _, kind, difficultyID = GetInstanceInfo()
+  if kind == "raid" and not issecret(difficultyID) then return DIFFICULTY_IDS[difficultyID] end
+end
+
+-- The current tier's boss, and its raid, for an ENCOUNTER_START encounter ID.
+local function BossForEncounter(encounterID)
+  if #bar.raids == 0 then bar.raids = LoadRaids() end
+  for _, raid in ipairs(bar.raids) do
+    for _, boss in ipairs(LoadBosses(raid.id)) do
+      if boss.encounter == encounterID then return boss, raid end
+    end
+  end
+end
+
 ---------------------------------------------------------------------------
 -- Bar
 ---------------------------------------------------------------------------
@@ -103,20 +163,28 @@ local function UpdateButtons()
     end
     b:SetShown(boss ~= nil)
   end
+  for difficulty, radio in pairs(bar.radios) do radio:SetChecked(difficulty == Difficulty()) end
   bar.save:SetEnabled(bar.selected ~= nil)
   bar.delete:SetEnabled(bar.selected ~= nil and layouts[bar.selected] ~= nil)
+end
+
+-- Loads a saved layout into the grid, and its note, or none, as the working
+-- note.
+local function Load(layout)
+  ns.GetDB().note = layout.note
+  ns.SetLayout(layout.text)
 end
 
 local function OnBossClick(self)
   bar.selected = self.boss.id
   local layout = Layouts()[self.boss.id]
-  if layout then ns.SetLayout(layout.text) end
+  if layout then Load(layout) end
   UpdateButtons()
 end
 
 local function OnBossEnter(self)
   GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-  GameTooltip:SetText(self.boss.name)
+  GameTooltip:SetText(BossLabel(self.boss))
   local layout = Layouts()[self.boss.id]
   if layout then
     local when = date("%Y-%m-%d %H:%M", layout.saved)
@@ -191,9 +259,11 @@ local function TargetRaid()
     or (last and HasRaid(last.raid) and last.raid) or (bar.raids[1] and bar.raids[1].id)
 end
 
--- Shows the raid TargetRaid picks. The boss pulled last is selected
--- after a new pull, or when no boss is selected yet.
+-- Shows the raid TargetRaid picks, at the difficulty of the raid the player
+-- is in, if any. The boss pulled last is selected after a new pull, or when
+-- no boss is selected yet.
 local function Refresh()
+  ns.GetDB().difficulty = InstanceDifficulty() or Difficulty()
   local last = ns.GetDB().lastBoss
   local target = TargetRaid()
   if not target then
@@ -228,26 +298,32 @@ local function SaveSelected()
   ns.SaveToSelectedBoss(text)
 end
 
--- Stores text under the boss selected in the bar. Returns true when saved.
+-- Stores text under the boss selected in the bar, at the difficulty the row
+-- shows, with the working note when it is that boss's. Returns true when
+-- saved.
 function ns.SaveToSelectedBoss(text)
   local boss = SelectedBoss()
   if not boss then return false end
-  Layouts()[boss.id] = { text = text, saved = time() }
+  local note = ns.GetDB().note
+  local parsed = note and ns.ParseNote(note)
+  if not (parsed and parsed.encounter == boss.encounter) then note = nil end
+  Layouts()[boss.id] = { text = text, saved = time(), note = note }
   UpdateButtons()
-  ns.Print(L["Saved layout for %s."]:format(boss.name))
+  ns.Print(L["Saved layout for %s."]:format(BossLabel(boss)))
   return true
 end
 
--- The selected boss's journal ID and its saved layout (nil when it has
--- none), so Undo can put the layout back.
+-- The selected boss's journal ID, the difficulty the row shows and the
+-- boss's saved layout for it (nil when it has none), so Undo can put the
+-- layout back.
 function ns.SelectedBossLayout()
   local boss = SelectedBoss()
-  if boss then return boss.id, Layouts()[boss.id] end
+  if boss then return boss.id, Difficulty(), Layouts()[boss.id] end
 end
 
 -- Puts back a boss's saved layout from ns.SelectedBossLayout; nil removes it.
-function ns.RestoreBossLayout(id, layout)
-  Layouts()[id] = layout
+function ns.RestoreBossLayout(id, difficulty, layout)
+  Layouts(difficulty)[id] = layout
   if bar.row then UpdateButtons() end
 end
 
@@ -260,35 +336,66 @@ function ns.SelectedRaid()
   end
 end
 
+-- The difficulty the row shows, and the game's name for it.
+function ns.SelectedDifficulty()
+  return Difficulty(), DIFFICULTY_NAMES[Difficulty()]
+end
+
+-- Shows the layouts for difficulty, and loads the selected boss's layout
+-- for it, as a click on the boss does.
+function ns.SelectDifficulty(difficulty)
+  ns.GetDB().difficulty = difficulty
+  local boss = SelectedBoss()
+  local layout = boss and Layouts()[boss.id]
+  if layout then Load(layout) end
+  if bar.row then UpdateButtons() end
+end
+
+-- Selects the boss with an ENCOUNTER_START encounter ID, in its raid, and
+-- difficulty when given. Returns false when the boss is not in the tier.
+function ns.SelectEncounter(encounterID, difficulty)
+  local boss, raid = BossForEncounter(encounterID)
+  if not boss then return false end
+  if difficulty then ns.GetDB().difficulty = difficulty end
+  SelectRaid(raid.id)
+  bar.selected = boss.id
+  UpdateButtons()
+  return true
+end
+
 -- Every boss of a raid as { [journalID] = layout text, or false when nothing
--- is saved }.
-function ns.RaidLayouts(raidID)
+-- is saved }, for a difficulty.
+function ns.RaidLayouts(raidID, difficulty)
   local layouts = {}
   for _, boss in ipairs(LoadBosses(raidID)) do
-    local layout = Layouts()[boss.id]
+    local layout = Layouts(difficulty)[boss.id]
     layouts[boss.id] = layout and layout.text or false
   end
   return layouts
 end
 
--- Stores layouts in the shape ns.RaidLayouts gives them; false removes a
--- boss's layout.
-function ns.SetBossLayouts(layouts)
-  local stored = Layouts()
+-- Stores layouts in the shape ns.RaidLayouts gives them, for difficulty or
+-- the one the row shows; false removes a boss's layout. A boss's note
+-- stays, with its groups rewritten to the new layout.
+function ns.SetBossLayouts(layouts, difficulty)
+  local stored = Layouts(difficulty)
   for id, text in pairs(layouts) do
-    stored[id] = text and { text = text, saved = time() } or nil
+    local note = stored[id] and stored[id].note
+    stored[id] = text and { text = text, saved = time(), note = note and ns.RewriteNote(note, text) } or nil
   end
   if bar.row then UpdateButtons() end
 end
 
+-- data is { boss, difficulty }: the difficulty is kept, as the row can show
+-- another by the time the popup is answered.
 StaticPopupDialogs.RAIDNIGHT_DELETE_LAYOUT = {
   text = L["Delete the saved layout for %s?"],
   button1 = YES,
   button2 = NO,
-  OnAccept = function(_, boss)
-    Layouts()[boss.id] = nil
+  OnAccept = function(_, data)
+    Layouts(data.difficulty)[data.boss.id] = nil
     UpdateButtons()
-    ns.Print(L["Deleted layout for %s."]:format(boss.name))
+    ns.Print(L["Deleted layout for %s."]:format(BossLabel(data.boss, data.difficulty)))
   end,
   timeout = 0,
   whileDead = true,
@@ -297,7 +404,9 @@ StaticPopupDialogs.RAIDNIGHT_DELETE_LAYOUT = {
 
 local function DeleteSelected()
   local boss = SelectedBoss()
-  if boss then StaticPopup_Show("RAIDNIGHT_DELETE_LAYOUT", boss.name, nil, boss) end
+  if boss then
+    StaticPopup_Show("RAIDNIGHT_DELETE_LAYOUT", BossLabel(boss), nil, { boss = boss, difficulty = Difficulty() })
+  end
 end
 
 function ns.CreateBossBar(f)
@@ -325,10 +434,33 @@ function ns.CreateBossBar(f)
   send:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
     GameTooltip:SetText(L["Send"])
-    GameTooltip:AddLine(L["Send this raid's boss layouts to the raid. Everyone with Raidnight Helper gets yours in place of their own."], 1, 1, 1, true)
+    GameTooltip:AddLine(L["Send this raid's boss layouts for the selected difficulty to the raid. Everyone with Raidnight Helper gets yours in place of their own."], 1, 1, 1, true)
     GameTooltip:Show()
   end)
   send:SetScript("OnLeave", GameTooltip_Hide)
+
+  -- The difficulties go between the dropdown and Send. A click on a name
+  -- picks it too. The window widens when the names need more room.
+  local width = 14 + dropdown:GetWidth() + 12 + send:GetWidth() + save:GetWidth() + delete:GetWidth() + 2 * 6 + 12
+  local previous
+  for _, difficulty in ipairs(DIFFICULTIES) do
+    local radio = CreateFrame("CheckButton", nil, f, "UIRadioButtonTemplate")
+    radio:SetSize(16, 16)
+    if previous then
+      radio:SetPoint("LEFT", previous, "RIGHT", 10, 0)
+    else
+      radio:SetPoint("LEFT", dropdown, "RIGHT", 12, 0)
+    end
+    local label = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    label:SetPoint("LEFT", radio, "RIGHT", 3, 0)
+    label:SetText(DIFFICULTY_NAMES[difficulty])
+    radio:SetHitRectInsets(0, -(3 + label:GetStringWidth()), 0, 0)
+    radio:SetScript("OnClick", function() ns.SelectDifficulty(difficulty) end)
+    bar.radios[difficulty] = radio
+    previous = label
+    width = width + 16 + 3 + label:GetStringWidth() + 10
+  end
+  f:SetWidth(math.max(f:GetWidth(), width))
 
   local row = CreateFrame("Frame", nil, f)
   row:SetPoint("TOPLEFT", 16, -62)
@@ -377,36 +509,31 @@ function ns.ReadGroups()
   if text ~= "" then return text end
 end
 
--- The current tier's boss, and its raid, for an ENCOUNTER_START encounter ID.
-local function BossForEncounter(encounterID)
-  if #bar.raids == 0 then bar.raids = LoadRaids() end
-  for _, raid in ipairs(bar.raids) do
-    for _, boss in ipairs(LoadBosses(raid.id)) do
-      if boss.encounter == encounterID then return boss, raid end
-    end
-  end
-end
-
--- The boss pulled last becomes the selected one, now if the window is open,
--- else when it opens. With auto-save on, the pull also stores the raid's
--- groups under that boss. Groups can't change in combat, so the last
--- out-of-combat read stands in when the roster is secret at the pull.
+-- The boss pulled last, and the raid's difficulty, become the selected ones,
+-- now if the window is open, else when it opens. With auto-save on, the pull
+-- also stores the raid's groups under that boss and difficulty. Groups can't
+-- change in combat, so the last out-of-combat read stands in when the roster
+-- is secret at the pull.
 local function OnEncounterStart(encounterID)
   if not IsInRaid() or issecret(encounterID) then return end
   local boss, raid = BossForEncounter(encounterID)
   if not boss then return end
 
+  local difficulty = InstanceDifficulty()
   ns.GetDB().lastBoss = { raid = raid.id, boss = boss.id }
+  if difficulty then ns.GetDB().difficulty = difficulty end
   bar.pulled = true
   if bar.row and bar.row:IsVisible() then Refresh() end
 
-  if not ns.GetDB().autoSave then return end
+  if not ns.GetDB().autoSave or not difficulty then return end
   if IsInGroup(LE_PARTY_CATEGORY_INSTANCE) then return end -- Raid Finder groups are random
   local text = ns.ReadGroups() or lastGroups
   if not text then return end
-  Layouts()[boss.id] = { text = text, saved = time(), pull = true }
+  local old = Layouts(difficulty)[boss.id]
+  local note = old and old.note and ns.RewriteNote(old.note, text)
+  Layouts(difficulty)[boss.id] = { text = text, saved = time(), pull = true, note = note }
   if bar.row then UpdateButtons() end
-  ns.Print(L["Saved the raid's groups for %s."]:format(boss.name))
+  ns.Print(L["Saved the raid's groups for %s."]:format(BossLabel(boss, difficulty)))
 end
 
 local events = CreateFrame("Frame")

@@ -11,7 +11,7 @@ Paste a group layout from the website and the raid sorts itself into the planned
 
 - Open the window with `/raidnight` (or `/rn`) and paste the layout into the field at the top with Ctrl+V. The groups fill in at once.
 - The layout shows as groups 1–8, with 1–4 above 5–8. Drag a name onto another name to swap the two, onto an empty slot to move it there, or to **Not on list** to take it off the list. Raid members who are not on the list wait in that column and can be dragged into a group. So can names that are not in the raid: dropped on **Not on list**, they wait there in grey, and the layout keeps them. A name that is not in the raid comes off the list for good with a right-click and **Remove from list**, or by dragging it out of the window. Moving names that are not in the raid moves nobody in the raid. Names show in class colours with the role icon from the game's raid frames (tank, healer or damage), and grey while the player is not in the raid. A name that is in another group in the raid shows that group's number in orange. In a raid, the players you drag move in the raid at once, the same way Sort raid moves them (leader or assistant, and after combat when in combat); everyone else stays put until **Sort raid**, apart from someone who has to make room in a full group. Dragging while a sort runs adds the move to it.
-- Accepts plain text or the website's `RS1:` code.
+- Accepts plain text, the website's `RS1:` code or a [boss note](#boss-notes).
 - A live preview shows how many players are in the wrong group, who on the list is not in the raid, and which names match more than one player.
 - **Sort raid** moves players one at a time and waits for each move to land before the next. Two players who are to trade groups swap in one move. Sorting pauses in combat and continues when combat ends. If the game rejects a move, that player stays put, the rest are sorted, and the summary names them.
 - **Locks**: click the lock on a name to lock or unlock that player. Sort raid never puts a locked player in the [groups that play](#groups-that-play) (groups 1–4 in a raid of 20). One who stands in those groups stays there, unless the list needs the slot; then they move to a group after them, where they are sorted like anyone else. **Balance** never moves a locked player. While there is a list, everyone not on it starts locked, so a helper on the sidelines is not pulled into the raid. Dragging a locked player still moves them, and **Auto** unlocks everyone. Locks last until you leave the raid or reload.
@@ -59,12 +59,15 @@ The chat shows each half's share of the damage before and after, the goal when t
 
 A row of boss icons at the top of the window shows the bosses of the current raid tier, read from the Encounter Journal. Pick the raid in the dropdown; it starts on the raid you are in.
 
-- Click a boss to load its saved layout into the groups.
+Each boss has a layout for **Normal**, **Heroic** and **Mythic**. Pick the difficulty with the buttons next to the dropdown (or `/raidnight normal`, `heroic` or `mythic`); the icons, **Save**, **Delete** and **Send** work on that one. Opening the window inside a raid picks the raid's difficulty, and so does a pull. Layouts saved before there were difficulties are Mythic ones.
+
+- Click a boss to load its saved layout into the groups. Picking another difficulty loads the selected boss's layout for it.
 - The boss you pulled last is selected automatically, also after a `/reload`. Click another boss to choose it instead.
 - **Save** stores the current layout under the selected boss. **Delete** removes it.
-- **Send** (or `/raidnight send`) sends the boss layouts of the raid in the dropdown to everyone in the raid who has Raidnight Helper. Their layouts for that raid's bosses are replaced by yours, and bosses you have nothing saved for are cleared on their side; their layouts for other raids stay. With the window closed, `/raidnight send` sends the raid the dropdown would open on. Only the raid leader and assistants can send, out of combat and not in Raid Finder, and layouts are only taken in from them. Someone who joins the raid after a push, or reloads while one is on the way, does not get it: press Send again. That does no harm to those who already have the layouts.
+- Pasting a [boss note](#boss-notes) selects its boss and difficulty and saves it there at once.
+- **Send** (or `/raidnight send`) sends the boss layouts of the raid in the dropdown, for the difficulty you picked, to everyone in the raid who has Raidnight Helper. Their layouts for that raid's bosses at that difficulty are replaced by yours, and bosses you have nothing saved for are cleared on their side; their layouts for other raids and other difficulties stay. With the window closed, `/raidnight send` sends the raid the dropdown would open on, at the difficulty picked last. Everyone needs a version of Raidnight Helper with difficulties: older versions are asked to update, and pushes from them are not taken in. Only the raid leader and assistants can send, out of combat and not in Raid Finder, and layouts are only taken in from them. Someone who joins the raid after a push, or reloads while one is on the way, does not get it: press Send again. That does no harm to those who already have the layouts.
 - Faded icons have nothing saved yet. Hover an icon to see when its layout was saved.
-- With **Save the raid's groups to the boss on pull** checked (the default), every pull stores the raid's groups as they are under that boss, so the next click on it brings back the groups from the last pull. Raid Finder pulls are skipped.
+- With **Save the raid's groups to the boss on pull** checked (the default), every pull stores the raid's groups as they are under that boss, at the raid's difficulty, so the next click on it brings back the groups from the last pull. Raid Finder pulls are skipped.
 - Layouts are stored account-wide in WoW's saved variables, so addon updates keep them.
 
 #### Text format
@@ -83,14 +86,44 @@ Left: Brannoc Elowyn Fenwick Isolde Torvald Ashlyn
 Right: Corvain Dúnmir Ravéna Thessaly
 ```
 
-Any line with a colon and no group number starts a list. Each list fills groups of five in order, from the group after the last one used: Left takes groups 1 and 2 here, and Right group 3. With 14 names on each side, Left takes groups 1–3 and Right groups 4–6. Names can be split by spaces or commas, or go one per line under the list's name. Split by spaces, each word is a name, so a realm goes without spaces: `Elowyn-ArgentDawn`.
+Any line with a colon and no group number starts a list. Each list fills groups of five in order, from the group after the last one used: Left takes groups 1 and 2 here, and Right group 3. With 14 names on each side, Left takes groups 1–3 and Right groups 4–6. Names can be split by spaces or commas, or go one per line under the list's name. Split by spaces, each word is a name, so a realm goes without spaces: `Elowyn-ArgentDawn`. A name with a number in it, such as `Team 2:`, still means group 2.
 
 A `Not on list:` line holds the names that wait in **Not on list**, outside the groups. It is the one line with a colon that does not start a list. Boss layouts and **Send** keep it too.
 
 ```
 Group 1: Brannoc, Elowyn, Fenwick
 Not on list: Isolde, Torvald
-``` A name with a number in it, such as `Team 2:`, still means group 2.
+```
+
+#### Boss notes
+
+A boss note from the website starts with its boss and difficulty, followed by a timeline, blocks of lists and an invite list:
+
+```
+EncounterID:3001;Difficulty:Heroic;Name:Vexmora
+
+time:0;ph:1;tag:Brannoc;spellid:370537;
+time:120;ph:1;tag:everyone;text:POTIONS;
+
+P2 - Group Split
+Left: Brannoc Elowyn Fenwick Isolde Torvald Ashlyn
+Right: Corvain Dúnmir Ravéna Thessaly
+
+P1 - Coil Soaks
+Soak first: Brannoc Corvain Elowyn
+
+invitelist:Brannoc-ArgentDawn,Elowyn-ArgentDawn;
+```
+
+The groups come from the lists in the first block, read as [named lists](#text-format): here Left and Right, but the lists can have any name (`Melee:`, `Healers - Front:`, ...), and there can be one list or several. The blocks after it, if any, the timeline and the invite list are left out. Pasted, the note fills the groups, selects its boss in the boss row (switching the raid in the dropdown if needed) and its difficulty, and is saved under them at once. **Undo** brings back the groups, the note and the boss's saved layout from before. A note for a boss that is not in the current tier's raids fills the groups and saves nothing. Without a difficulty, the note is saved under the one the row shows.
+
+**The note window** (`/raidnight note`) shows the whole note: the one pasted last, or the one saved with the boss you clicked last. A boss without a note shows none.
+
+- Paste or edit the note there and press **Apply** (or `/raidnight note apply`). Nothing changes until then. Apply works like pasting the note: its groups become the layout, it selects its boss and difficulty, and it is saved under them at once.
+- The other way round, the note follows the groups. When the groups change (a drag, **Auto**, **Balance**, **Swap halves**, **Undo**), each list in the first block gets the players now in the groups it filled: with Left in groups 1–3 and Right in 4–6, a player dragged from group 2 to group 5 moves from Left to Right. Timeline lines that tag exactly a list's players, such as the `Split Left` reminder, move with it. Lines for one player, the other blocks and the invite list stay as they are, and names keep the note's spelling.
+- Players in groups no list fills go on `Group N:` lines after the lists, and names waiting in **Not on list** on a `Not on list:` line, so Apply puts them back where they were.
+- A list holds a side, not exact groups: read again, its players fill groups of five in order, as the website does. Moving a player from group 1 to group 3 keeps them on Left, and Apply puts them back in group 1.
+- **Save**, a pull with auto-save on, and boss layouts received through **Send** keep a boss's note, with its groups following. **Send** itself sends groups only. **Clear** empties the note window too.
 
 #### Commands
 
@@ -104,5 +137,8 @@ Not on list: Isolde, Torvald
 | `/raidnight balance` | Even out the damage of the two halves from the last boss pull, and sort |
 | `/raidnight swap` | Trade the two halves of the groups that play in the layout |
 | `/raidnight invite` | Invite players on the list who are not in the raid |
-| `/raidnight send` | Send the boss layouts of the raid in the dropdown to the raid |
+| `/raidnight send` | Send the boss layouts of the raid in the dropdown, for the difficulty picked, to the raid |
+| `/raidnight normal` | Pick Normal for the boss layouts (also `heroic` and `mythic`) |
+| `/raidnight note` | Open or close the boss note window |
+| `/raidnight note apply` | Make the boss note's groups the layout, as **Apply** does |
 | `/raidnight stop` | Stop a sort in progress |
