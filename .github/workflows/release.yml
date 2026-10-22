@@ -9,7 +9,11 @@ permissions:
   contents: write   # lets GITHUB_TOKEN create the GitHub Release
 
 jobs:
+  test:
+    uses: ./.github/workflows/tests.yml
+
   release:
+    needs: test   # a failing test stops the release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

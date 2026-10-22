@@ -15,8 +15,8 @@
 -- Commands (/rn works as a short form):
 --   /raidnight         open/close the window
 --   /raidnight apply   sort by the last pasted layout (handy in a macro)
---   /raidnight auto    balance groups 1-4 by role and sort (see AutoGroups.lua)
---   /raidnight balance even out the damage of groups 1+2 and 3+4 (see Balance.lua)
+--   /raidnight auto    balance the groups that play by role and sort (see AutoGroups.lua)
+--   /raidnight balance even out the damage of the two halves (see Balance.lua)
 --   /raidnight invite  invite players on the list who are not in the raid
 --   /raidnight stop    stop a sort in progress
 --
@@ -263,8 +263,9 @@ end
 -- Locks
 ---------------------------------------------------------------------------
 
--- Locked players never go into groups 1-4 (see ApplyLocks); only a drag in
--- the grid moves them there. Balance leaves them where they are. While
+-- Locked players never go into the groups that play (see ApplyLocks and
+-- ns.PlayGroups); only a drag in the grid moves them there. Balance leaves
+-- them where they are. While
 -- there is a list, players who are not on
 -- it start locked and the others unlocked; a click on the lock decides for
 -- the rest of the raid. Auto lets go of all locks. Kept by name as in the
@@ -357,18 +358,20 @@ local function MatchPlan(plan, members)
   return res
 end
 
--- Locked players never go into groups 1-4. One who stands in their own group
--- stays there; one who is to go to groups 5-8 is sorted like anyone else.
--- The others count as not on the list, so they stay where they are, or leave
--- groups 1-4 for groups 5-8 when their slot is needed (see NextMove). The
--- players a drag moves (moves, names as on the list) are not held by a lock.
+-- Locked players never go into the groups that play. One who stands in
+-- their own group stays there; one who is to go to a later group is sorted
+-- like anyone else. The others count as not on the list, so they stay where
+-- they are, or leave the groups that play for a later one when their slot is
+-- needed (see NextMove). The players a drag moves (moves, names as on the
+-- list) are not held by a lock.
 local function ApplyLocks(members, plan, moves)
   local hasList = plan.count > 0
+  local play = ns.PlayGroups()
   for _, m in ipairs(members) do
     local dragged = moves and m.entry and moves[m.entry.name]
     if not dragged and ns.IsLocked(m.name, m.entry ~= nil, hasList) then
       m.locked = true
-      if m.desired and m.desired <= ns.AUTO_GROUPS and m.desired ~= m.group then m.desired = nil end
+      if m.desired and m.desired <= play.count and m.desired ~= m.group then m.desired = nil end
     end
   end
 end
@@ -428,31 +431,32 @@ local function AddMissing(groups, res)
   end
 end
 
--- Gives players who are not on the list a group in the open slots of groups
--- 1-4, by role and class (see AutoGroups.lua). Players on the list keep their
--- groups, and slots of list players who are not in the raid, or whose name
--- matches more than one player, are held for them. Among players of the
--- same role, those already in groups 1-4 get a slot first; anyone without a
--- slot is left for the free groups. Locked players get none. Returns
--- { [name] = group }.
+-- Gives players who are not on the list a group in the open slots of the
+-- groups that play, by role and class (see AutoGroups.lua). Players on the
+-- list keep their groups, and slots of list players who are not in the raid,
+-- or whose name matches more than one player, are held for them. Among
+-- players of the same role, those already in the groups that play get a slot
+-- first; anyone without a slot is left for the free groups. Locked players
+-- get none. Returns { [name] = group }.
 local function PlaceExtras(members, res)
+  local play = ns.PlayGroups()
   local fixed, extras, far = {}, {}, {}
   for _, e in ipairs(res.held) do
-    if e.group <= ns.AUTO_GROUPS then fixed[#fixed + 1] = { group = e.group } end
+    if e.group <= play.count then fixed[#fixed + 1] = { group = e.group } end
   end
   for _, m in ipairs(members) do
     local role = ns.UnitRole("raid" .. m.index)
     local _, class = UnitClass("raid" .. m.index)
     if m.desired then
-      if m.desired <= ns.AUTO_GROUPS then fixed[#fixed + 1] = { group = m.desired, role = role, class = class } end
+      if m.desired <= play.count then fixed[#fixed + 1] = { group = m.desired, role = role, class = class } end
     elseif not m.locked then
-      local list = m.group <= ns.AUTO_GROUPS and extras or far
+      local list = m.group <= play.count and extras or far
       list[#list + 1] = { name = m.name, role = role, class = class }
     end
   end
   for _, p in ipairs(far) do extras[#extras + 1] = p end
 
-  ns.BalanceGroups(fixed, extras)
+  ns.BalanceGroups(fixed, extras, play)
   local targets = {}
   for _, p in ipairs(extras) do targets[p.name] = p.target end
   return targets
@@ -464,9 +468,9 @@ local function ApplyTargets(members, targets)
   end
 end
 
--- Locked players never go into groups 1-4.
-local function CanGo(p, g)
-  return not (p.locked and g <= ns.AUTO_GROUPS)
+-- Locked players never go into the groups that play (play.count).
+local function CanGo(p, g, play)
+  return not (p.locked and g <= play.count)
 end
 
 -- Finds the next move. Each move puts at least one player on the list in
@@ -476,6 +480,7 @@ end
 -- players to place to those names (as on the list). Players the game would
 -- not move (.skipped) stay where they are.
 local function NextMove(plan, members, counts, moveExtras, only)
+  local play = ns.PlayGroups()
   local wrong = {}
   for _, m in ipairs(members) do
     if m.desired and m.group ~= m.desired and not m.skipped
@@ -484,13 +489,13 @@ local function NextMove(plan, members, counts, moveExtras, only)
     end
   end
 
-  -- A group in 5-8 with room for a locked player: their own group on the
-  -- list, else a group the list doesn't use, else any.
+  -- A group after the ones that play with room for a locked player: their
+  -- own group on the list, else a group the list doesn't use, else any.
   local function Bench(p)
     local own = p.desired
-    if own and own > ns.AUTO_GROUPS and (counts[own] or 0) < GROUP_SIZE then return own end
+    if own and own > play.count and (counts[own] or 0) < GROUP_SIZE then return own end
     for pass = 1, 2 do
-      for g = ns.AUTO_GROUPS + 1, MAX_GROUPS do
+      for g = play.count + 1, MAX_GROUPS do
         if (counts[g] or 0) < GROUP_SIZE and (pass == 2 or not plan.used[g]) then return g end
       end
     end
@@ -511,13 +516,13 @@ local function NextMove(plan, members, counts, moveExtras, only)
   end
 
   -- 3. A player whose group is full swaps with someone there who is not to
-  -- stay. A locked player there who can't take the mover's place in groups
-  -- 1-4 leaves for groups 5-8 first.
+  -- stay. A locked player there who can't take the mover's place in the
+  -- groups that play leaves for a later group first.
   for _, m in ipairs(wrong) do
     local locked
     for _, o in ipairs(members) do
       if o.group == m.desired and o.desired ~= m.desired and not o.skipped then
-        if CanGo(o, m.group) then return "swap", m, o end
+        if CanGo(o, m.group, play) then return "swap", m, o end
         locked = locked or o
       end
     end
@@ -530,7 +535,7 @@ local function NextMove(plan, members, counts, moveExtras, only)
     for _, m in ipairs(members) do
       if not m.desired and not m.skipped and plan.used[m.group] then
         for g = 1, MAX_GROUPS do
-          if not plan.used[g] and (counts[g] or 0) < GROUP_SIZE and CanGo(m, g) then
+          if not plan.used[g] and (counts[g] or 0) < GROUP_SIZE and CanGo(m, g, play) then
             return "set", m, g
           end
         end
@@ -683,7 +688,8 @@ local function Summary(plan, res, members)
   local lines = {}
   local wrong = CountWrong(members)
   if wrong == 0 then
-    -- Locked players kept out of their group in 1-4 are not in the right one.
+    -- Locked players kept out of their group in the groups that play are not
+    -- in the right one.
     local right = res.matched
     for _, m in ipairs(members) do
       if m.locked and m.entry and m.group ~= m.entry.group then right = right - 1 end
@@ -949,8 +955,8 @@ function ns.MoveInRaid(moves)
   ns.Apply(GetDB().text, false, moves)
 end
 
--- Balances groups 1-4 by role with players from the whole raid (see
--- AutoGroups.lua), makes the result the layout and sorts the raid by it.
+-- Balances the groups that play by role with players from the whole raid
+-- (see AutoGroups.lua), makes the result the layout and sorts the raid by it.
 -- Auto lets go of all locks.
 function ns.Auto()
   if runner.active then Stop() end
@@ -980,11 +986,21 @@ end
 
 local function Percent(share) return math.floor(share * 100 + 0.5) end
 
--- Evens out the damage of groups 1+2 and 3+4 by the last boss pull, or the
--- newest fight in the damage meter, swapping damage dealers (see
--- Balance.lua), makes the result the layout and sorts
--- the raid by it. Damage dealers whose damage is not known count as an
--- average one and stay where they are, like locked players.
+-- The groups of half h of the groups that play, as text: "1+2" or "4+5+6".
+local function HalfName(play, h)
+  local list = {}
+  for g = 1, play.count do
+    if play.half[g] == h then list[#list + 1] = g end
+  end
+  return table.concat(list, "+")
+end
+
+-- Evens out the damage of the two halves of the groups that play by the last
+-- boss pull, or the newest fight in the damage meter, swapping damage
+-- dealers (see Balance.lua), makes the result the layout and sorts the raid
+-- by it. Each half's goal follows its share of the players. Damage dealers
+-- whose damage is not known count as an average one and stay where they
+-- are, like locked players.
 function ns.Balance()
   if runner.active then Stop() end
   local ok, err = CanArrange()
@@ -999,14 +1015,18 @@ function ns.Balance()
   end
   ns.CheckSpecs(function()
     local plan = ns.ParseInput(GetDB().text)
-    local members = ReadRoster()
+    local members, counts = ReadRoster()
     local res = MatchPlan(plan, members)
     ApplyLocks(members, plan)
+    local play = ns.PlayGroups()
+    local size = { 0, 0 }
+    for g = 1, play.count do size[play.half[g]] = size[play.half[g]] + (counts[g] or 0) end
+    local share = size[1] + size[2] > 0 and size[1] / (size[1] + size[2]) or 0.5
     local players, unknown, known, sum = {}, {}, 0, 0
     for _, m in ipairs(members) do
       local unit = "raid" .. m.index
       local role = ns.UnitRole(unit)
-      if m.group <= ns.AUTO_GROUPS and (role == "MELEE" or role == "RANGED") then
+      if m.group <= play.count and (role == "MELEE" or role == "RANGED") then
         local _, class = UnitClass(unit)
         local guid = UnitGUID(unit)
         local amount = (guid and not issecret(guid) and damage[guid]) or damage[m.name]
@@ -1025,16 +1045,21 @@ function ns.Balance()
       if not p.damage then p.damage = known > 0 and sum / known or 0 end
     end
 
-    local swaps, before, after, even = ns.BalanceDamage(players)
+    local swaps, before, after, even = ns.BalanceDamage(players, play.half, share)
     if not swaps then
       ns.SetStatus("|cffff5555" .. L["The damage meter has no damage from this fight."] .. "|r")
       Print(L["The damage meter has no damage from this fight."])
       return
     end
-    Print(L["%s: groups 1+2 did %d%% of the damage, groups 3+4 %d%%."]:format(fight, Percent(before[1]), Percent(before[2])))
+    local first, second = HalfName(play, 1), HalfName(play, 2)
+    Print(L["%s: groups %s did %d%% of the damage, groups %s %d%%."]:format(fight, first, Percent(before[1]), second, Percent(before[2])))
+    if size[1] ~= size[2] then
+      Print(L["Groups %s have %d players and groups %s %d, so the goal is %d%% and %d%%."]:format(
+        first, size[1], second, size[2], Percent(share), 100 - Percent(share)))
+    end
     if #unknown > 0 then Print(L["No damage known for %s: counted as average."]:format(table.concat(unknown, ", "))) end
     if #swaps == 0 then
-      local msg = even and L["Groups 1+2 and 3+4 are already even."] or L["No swap of damage dealers makes the halves more even."]
+      local msg = even and L["Groups %s and %s are already even."]:format(first, second) or L["No swap of damage dealers makes the halves more even."]
       ns.SetStatus(msg)
       Print(msg)
       return
@@ -1053,7 +1078,7 @@ function ns.Balance()
       Replace(q.group, q.name, p.name)
       Print(L["%s and %s trade places."]:format(p.name, q.name))
     end
-    Print(L["After: groups 1+2 %d%%, groups 3+4 %d%%."]:format(Percent(after[1]), Percent(after[2])))
+    Print(L["After: groups %s %d%%, groups %s %d%%."]:format(first, Percent(after[1]), second, Percent(after[2])))
     -- Players on the list who are not in the raid stay on it.
     AddMissing(groups, res)
     local text = ns.FormatLayout(groups)

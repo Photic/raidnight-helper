@@ -4,7 +4,12 @@
 # package.py output
 dist/
 
+# test runs
+__pycache__/
+.pytest_cache/
+
 # packager secrets for local runs
 .env
 
 .claude/
+WoWCombatLog*

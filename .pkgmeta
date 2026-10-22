@@ -2,6 +2,7 @@ package-as: RaidnightHelper
 
 ignore:
   - package.py
+  - tests
 
 move-folders:
   RaidnightHelper/src: RaidnightHelper

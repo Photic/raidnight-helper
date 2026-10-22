@@ -1,13 +1,16 @@
 -- Balance
--- Evens out the damage of the two halves, groups 1+2 and 3+4, by the damage
--- each damage dealer did in the last boss pull, read from the game's damage
--- meter. Only damage dealers count, and only they move: two in opposite
--- halves trade places, so the halves keep their size, until the halves are
--- within 5% of each other. Auto's rules hold as far as they can: swaps keep
--- melee for melee and ranged for ranged, even if a class then ends up less
--- evenly split (see AutoGroups.lua), before they trade a melee for a ranged.
--- Then as few players as possible move. Locked players stay where they are,
--- and nobody moves twice.
+-- Evens out the damage of the two halves of the groups that play, groups 1+2
+-- and 3+4 or 1-3 and 4-6 (see ns.PlayGroups), by the damage each damage
+-- dealer did in the last boss pull, read from the game's damage meter. Each
+-- half's goal is the share of the damage that matches its share of the
+-- players: half and half when the halves are the same size. Only damage
+-- dealers count, and only they move: two in opposite halves trade places, so
+-- the halves keep their size, until the halves are within 5% of their goal.
+-- Auto's rules hold as far as they can: swaps keep melee for melee and
+-- ranged for ranged, even if a class then ends up less evenly split (see
+-- AutoGroups.lua), before they trade a melee for a ranged. Then as few
+-- players as possible move. Locked players stay where they are, and nobody
+-- moves twice.
 --
 -- The damage meter's numbers are secret in combat, so the session of a boss
 -- pull is noted once combat is over, and Balance only runs out of combat.
@@ -17,7 +20,6 @@
 local _, ns = ...
 local L = ns.L
 
-local HALF      = { 1, 1, 2, 2 }  -- the half each of groups 1-4 belongs to
 local TOLERANCE = 0.05            -- halves this close count as even
 local MAX_SWAPS = 4               -- 3 when both halves have more than 8 to move
 
@@ -112,21 +114,23 @@ end)
 ---------------------------------------------------------------------------
 
 -- Picks the swaps for players ({ name, group, role, class, damage, movable }),
--- the damage dealers in groups 1-4; movable is false for those who are
--- locked or whose damage is not known. It tries every set of up to
+-- the damage dealers in the groups that play; half gives each of those
+-- groups' half (see ns.PlayGroups), and share is the share of the damage
+-- half 1 is to do. movable is false for those who are locked or whose
+-- damage is not known. It tries every set of up to
 -- MAX_SWAPS swaps. Each set has a level, by how far it bends Auto's rules:
 -- 1, only melee for melee and ranged for ranged, and no class less evenly
 -- split than before; 2, only the same role; 3, melee for ranged too, but no
 -- class less evenly split; 4, anything. Of the sets that get the halves
 -- within 5%, the lowest level wins, then the fewest swaps, then the most
 -- even. When none does, the set that gets them closest wins. Returns the
--- swaps as { { p, q }, ... } with p from groups 1+2, each half's share of the
+-- swaps as { { p, q }, ... } with p from half 1, each half's share of the
 -- damage before and after as { half1, half2 }, and whether the halves end up
 -- even. Returns nothing when there is no damage at all.
-function ns.BalanceDamage(players)
+function ns.BalanceDamage(players, half, share)
   local sum, count, side = { 0, 0 }, {}, { {}, {} }
   for _, p in ipairs(players) do
-    local h = HALF[p.group]
+    local h = half[p.group]
     sum[h] = sum[h] + p.damage
     count[p.class] = count[p.class] or { 0, 0 }
     count[p.class][h] = count[p.class][h] + 1
@@ -136,7 +140,10 @@ function ns.BalanceDamage(players)
   if total <= 0 then return end
   local goal = total * TOLERANCE
 
-  local best = { swaps = {}, diff = math.abs(sum[1] - sum[2]), level = 1, gap = sum[1] - sum[2] }
+  -- Twice what half 1 did over its share: with halves of the same size, half
+  -- 1's damage minus half 2's.
+  local gap = 2 * (sum[1] - share * total)
+  local best = { swaps = {}, diff = math.abs(gap), level = 1, gap = gap }
   local function Better(diff, level, n)
     local reach, bestReach = diff <= goal, best.diff <= goal
     if reach ~= bestReach then return reach end
@@ -165,7 +172,7 @@ function ns.BalanceDamage(players)
 
   local depth = (#side[1] > 8 and #side[2] > 8) and MAX_SWAPS - 1 or MAX_SWAPS
   local chosen, taken = {}, {}
-  -- gap is groups 1+2's damage minus groups 3+4's; cross counts melee for ranged.
+  -- gap is twice what half 1 did over its share; cross counts melee for ranged.
   local function Search(from, gap, cross)
     local n = #chosen
     if n > 0 then
@@ -193,8 +200,8 @@ function ns.BalanceDamage(players)
       end
     end
   end
-  if best.diff > goal then Search(1, sum[1] - sum[2], 0) end
+  if best.diff > goal then Search(1, gap, 0) end
 
-  local after1 = (total + best.gap) / 2
+  local after1 = share * total + best.gap / 2
   return best.swaps, { sum[1] / total, sum[2] / total }, { after1 / total, 1 - after1 / total }, best.diff <= goal
 end

@@ -10,8 +10,8 @@
 -- a role icon, and grey without one while the player is not in the raid. A
 -- name in a group shows, in orange, the number of the group the player is in
 -- now when that is another one. Raid members have a lock to click: locked
--- players never go into groups 1-4 when the raid is sorted, and Balance
--- leaves them where they are (see ns.IsLocked).
+-- players never go into the groups that play when the raid is sorted (see
+-- ns.PlayGroups), and Balance leaves them where they are (see ns.IsLocked).
 
 local _, ns = ...
 local L = ns.L
@@ -193,9 +193,9 @@ local function OnLockEnter(self)
   local slot = self:GetParent()
   GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
   GameTooltip:SetText(slot.member or "")
-  local tip = slot.locked and L["Locked: Sort raid never puts this player in groups 1-4, and Balance never moves them. Auto unlocks everyone. Click to unlock."]
-    or L["Click to lock: Sort raid will never put this player in groups 1-4, and Balance will not move them."]
-  GameTooltip:AddLine(tip, 1, 1, 1, true)
+  local tip = slot.locked and L["Locked: Sort raid never puts this player in groups 1-%d, and Balance never moves them. Auto unlocks everyone. Click to unlock."]
+    or L["Click to lock: Sort raid will never put this player in groups 1-%d, and Balance will not move them."]
+  GameTooltip:AddLine(tip:format(ns.PlayGroups().count), 1, 1, 1, true)
   GameTooltip:Show()
 end
 
