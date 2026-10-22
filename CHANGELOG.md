@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Lists with a name of their own, such as `Left: ...` and `Right: ...`, can be pasted. Each list fills groups of five in order, so with 14 names on each side, Left takes groups 1–3 and Right groups 4–6.
+- **Swap halves** (or `/raidnight swap`) trades the two halves of the groups that play in the layout: groups 1–3 with 4–6, or 1+2 with 3+4. While the raid is still forming, it uses the halves the raid will have once everyone on the list is in, so the sides stay together. The raid stays as it is until **Sort raid**.
+
 ## [1.1.0] - 2026-10-22
 
 ### Added

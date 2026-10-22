@@ -12,11 +12,20 @@
 -- Names can also go one per line under a "Group N" line, and "Gruppe", "G1",
 -- "1." etc. work too. Names can include the realm: "Name-Realm".
 --
+-- A line with a colon and no group number starts a named list:
+--
+--   Left: Brannoc Elowyn Fenwick Isolde Torvald Ashlyn
+--   Right: Corvain Dúnmir Ravéna Thessaly
+--
+-- Each list fills groups of five in order, from the group after the last one
+-- used: Left takes groups 1 and 2 here, and Right group 3.
+--
 -- Commands (/rn works as a short form):
 --   /raidnight         open/close the window
 --   /raidnight apply   sort by the last pasted layout (handy in a macro)
 --   /raidnight auto    balance the groups that play by role and sort (see AutoGroups.lua)
 --   /raidnight balance even out the damage of the two halves (see Balance.lua)
+--   /raidnight swap    trade the two halves of the groups that play in the layout
 --   /raidnight invite  invite players on the list who are not in the raid
 --   /raidnight send    send the boss layouts of the raid in the dropdown to the raid (see Sync.lua)
 --   /raidnight stop    stop a sort in progress
@@ -137,7 +146,14 @@ local function NormalizeText(text)
   return text
 end
 
+-- A line split by commas, semicolons or tabs keeps "Name-Realm" whole up to
+-- the next one, as the realm may contain spaces. Without them, each word is a
+-- name, "Name-Realm" too.
 local function SplitNames(s, out)
+  if not s:find("[,;\t]") then
+    for word in s:gmatch("%S+") do out[#out + 1] = word end
+    return
+  end
   for token in s:gmatch("[^,;\t]+") do
     token = Trim(token)
     if token ~= "" then
@@ -167,15 +183,27 @@ local function AddEntry(plan, seen, group, name)
   plan.count = plan.count + 1
 end
 
+-- The group after the last one used: where a named list starts.
+local function NextGroup(plan)
+  for g = MAX_GROUPS, 1, -1 do
+    if plan.used[g] then return g + 1 end
+  end
+  return 1
+end
+
 function ns.ParseText(text)
   local plan = NewPlan()
   local seen = {}
   local current, ignored = nil, 0
+  local named, full = false, false -- in a named list; a named list ran past the last group
 
   for line in NormalizeText(text):gmatch("[^\n]+") do
     line = Trim(line)
     local _, num, rest = line:match("^([%a%s%.#]*)(%d+)%s*[:%.%)%-]?%s*(.*)$")
+    local label, after
+    if not num then label, after = line:match("^([^:,;\t]+):%s*(.*)$") end
     if num then
+      named = false
       num = tonumber(num)
       if num >= 1 and num <= MAX_GROUPS then
         current = num
@@ -184,12 +212,25 @@ function ns.ParseText(text)
         table.insert(plan.errors, L["Invalid group number %d (must be 1-%d)."]:format(num, MAX_GROUPS))
       end
       line = rest
+    elseif label then
+      -- A named list ("Left: ..."): its first name decides its group.
+      current, named = nil, true
+      line = after
     end
     if line ~= "" then
-      if current then
+      if current or named then
         local names = {}
         SplitNames(line, names)
-        for _, name in ipairs(names) do AddEntry(plan, seen, current, name) end
+        for _, name in ipairs(names) do
+          if named and not (current and #(plan.groups[current] or {}) < GROUP_SIZE) then
+            current = NextGroup(plan)
+          end
+          if current > MAX_GROUPS then
+            full = true
+            break
+          end
+          AddEntry(plan, seen, current, name)
+        end
       elseif not num then
         ignored = ignored + 1
       end
@@ -201,6 +242,9 @@ function ns.ParseText(text)
     if list and #list > GROUP_SIZE then
       table.insert(plan.errors, L["Group %d has %d players (max %d)."]:format(g, #list, GROUP_SIZE))
     end
+  end
+  if full then
+    table.insert(plan.errors, L["The lists have more players than groups 1-%d can hold."]:format(MAX_GROUPS))
   end
   if ignored > 0 then
     table.insert(plan.warnings, L["%d line(s) without a group number were ignored."]:format(ignored))
@@ -1090,6 +1134,34 @@ function ns.Balance()
   end)
 end
 
+-- Trades the two halves of the groups that play in the layout: the first
+-- group of one half with the first of the other, and so on, so 1-3 trade
+-- with 4-6 and 1+2 with 3+4. A group without a partner, as group 3 when 1-3
+-- and 4-5 play, stays, and so do the groups after the ones that play. The
+-- halves are the raid's once everyone on the list is in, so a raid that is
+-- still forming keeps its sides. Players on the list who are not in the raid
+-- move with their group, where their slot waits for them. The raid stays as
+-- it is until Sort raid.
+function ns.SwapHalves()
+  local plan = ns.ParseInput(GetDB().text)
+  if plan.empty or #plan.errors > 0 then
+    Print(L["Paste a valid layout first."])
+    return
+  end
+  if runner.active then Stop() end
+  local play = ns.PlayGroups(plan.count)
+  local halves = { {}, {} }
+  for g = 1, play.count do table.insert(halves[play.half[g]], g) end
+  local groups, first, second = plan.groups, {}, {}
+  for i = 1, math.min(#halves[1], #halves[2]) do
+    local a, b = halves[1][i], halves[2][i]
+    groups[a], groups[b] = groups[b], groups[a]
+    first[i], second[i] = a, b
+  end
+  ns.SetLayout(ns.FormatLayout(groups))
+  Print(L["Groups %s and %s traded places."]:format(table.concat(first, "+"), table.concat(second, "+")))
+end
+
 function ns.InviteMissing(text)
   local plan = ns.ParseInput(text)
   if plan.empty or #plan.errors > 0 then
@@ -1262,9 +1334,16 @@ function ns.CreateUI()
   undoButton:SetScript("OnClick", ns.Undo)
   UpdateUndo()
 
+  local swap = MakeButton(f, L["Swap halves"], 100)
+  swap:SetPoint("LEFT", undoButton, "RIGHT", 6, 0)
+  swap:SetScript("OnClick", function()
+    eb:ClearFocus()
+    ns.SwapHalves()
+  end)
+
   -- The window widens when the buttons need more room, as in longer translations.
-  local row = clear:GetWidth() + undoButton:GetWidth() + balance:GetWidth() + auto:GetWidth()
-    + invite:GetWidth() + apply:GetWidth() + 4 * 6 + 2 * 12 + 12
+  local row = clear:GetWidth() + undoButton:GetWidth() + swap:GetWidth() + balance:GetWidth()
+    + auto:GetWidth() + invite:GetWidth() + apply:GetWidth() + 5 * 6 + 2 * 12 + 12
   f:SetWidth(math.max(f:GetWidth(), row))
 
   f:SetScript("OnShow", function()
@@ -1337,6 +1416,8 @@ SlashCmdList.RAIDNIGHT = function(msg)
     ns.Auto()
   elseif msg == "balance" then
     ns.Balance()
+  elseif msg == "swap" then
+    ns.SwapHalves()
   elseif msg == "invite" then
     ns.InviteMissing(GetDB().text)
   elseif msg == "send" then

@@ -34,9 +34,11 @@ local issecret = issecretvalue or function() return false end
 -- raid instance lets in (its maxPlayers: 20 in Mythic, 25 in Mythic flex, 30
 -- in Normal and Heroic), or than WORLD_GROUPS outside a raid instance. The
 -- first half has the first groups, and one more when the count is odd:
--- groups 1+2 and 3+4, 1-3 and 4-5, or 1-3 and 4-6.
-function ns.PlayGroups()
-  local count = math.max(MIN_GROUPS, 2 * math.ceil((GetNumGroupMembers() or 0) / 10))
+-- groups 1+2 and 3+4, 1-3 and 4-5, or 1-3 and 4-6. With players, the raid
+-- counts as at least that big: as it will be once everyone on a list is in.
+function ns.PlayGroups(players)
+  local size = math.max(GetNumGroupMembers() or 0, players or 0)
+  local count = math.max(MIN_GROUPS, 2 * math.ceil(size / 10))
   local limit = WORLD_GROUPS
   local _, kind, _, _, maxPlayers = GetInstanceInfo()
   if not issecret(kind) and not issecret(maxPlayers) and kind == "raid"

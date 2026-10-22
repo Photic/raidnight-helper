@@ -17,13 +17,14 @@ Paste a group layout from the website and the raid sorts itself into the planned
 - **Locks**: click the lock on a name to lock or unlock that player. Sort raid never puts a locked player in the [groups that play](#groups-that-play) (groups 1–4 in a raid of 20). One who stands in those groups stays there, unless the list needs the slot; then they move to a group after them, where they are sorted like anyone else. **Balance** never moves a locked player. While there is a list, everyone not on it starts locked, so a helper on the sidelines is not pulled into the raid. Dragging a locked player still moves them, and **Auto** unlocks everyone. Locks last until you leave the raid or reload.
 - **Fill open slots with players not on the list** (on by default): players on the list keep their groups, and unlocked players who are not on it take the open slots in the groups that play by role and class, with the same rules as Auto. Slots of list players who are not in the raid, or whose name matches more than one player, stay free for them; anyone left over goes to the free groups. Afterwards the layout shows the raid as it now is, with the players who are not in the raid still on the list, and with auto-save on, the selected boss keeps it.
 - **Undo** brings back the layout, the locks and, with auto-save on, the boss's saved layout from before Auto, Balance or filling open slots last changed them. The raid stays as it is until **Sort raid**.
+- **Swap halves** (or `/raidnight swap`) trades the two halves of the [groups that play](#groups-that-play) in the layout: group 1 with 4, 2 with 5 and 3 with 6, or 1 with 3 and 2 with 4 in a raid of up to 20. In Mythic flex, group 3 has no partner and stays. The groups after the ones that play stay too, and pressing it again swaps back. The halves are the ones the raid will have once everyone on the list is in, so the sides stay together while the raid is still forming. Players on the list who are not in the raid yet move with their group, and their slot waits for them there. The raid stays as it is until **Sort raid**.
 - **Invite missing** invites everyone on the list who is not in the raid yet.
 - Names match regardless of case and accents, so `Ravena` finds `Ravéna`. Write `Name-Realm` when two players share a name.
 - Requires raid leader or assistant to move players.
 
 #### Groups that play
 
-Auto, Balance, locks and filling open slots work on the groups that play, split into two halves. How many groups play follows the size of the raid and the raid you are in:
+Auto, Balance, Swap halves, locks and filling open slots work on the groups that play, split into two halves. How many groups play follows the size of the raid and the raid you are in:
 
 | Raid | Groups that play | Halves |
 |---|---|---|
@@ -75,6 +76,15 @@ Group 2: Ashlyn, Corvain, Dúnmir, Ravéna, Thessaly
 
 Names can also go one per line under a `Group N` line, and `Gruppe`, `G1` and `1.` work as group headers too.
 
+Lists with a name of their own work too, such as the two sides of a boss:
+
+```
+Left: Brannoc Elowyn Fenwick Isolde Torvald Ashlyn
+Right: Corvain Dúnmir Ravéna Thessaly
+```
+
+Any line with a colon and no group number starts a list. Each list fills groups of five in order, from the group after the last one used: Left takes groups 1 and 2 here, and Right group 3. With 14 names on each side, Left takes groups 1–3 and Right groups 4–6. Names can be split by spaces or commas, or go one per line under the list's name. Split by spaces, each word is a name, so a realm goes without spaces: `Elowyn-ArgentDawn`. A name with a number in it, such as `Team 2:`, still means group 2.
+
 #### Commands
 
 `/rn` works as a short form of `/raidnight`, e.g. `/rn auto`.
@@ -85,6 +95,7 @@ Names can also go one per line under a `Group N` line, and `Gruppe`, `G1` and `1
 | `/raidnight apply` | Sort by the last pasted layout (handy in a macro) |
 | `/raidnight auto` | Pick who plays from the whole raid, balance the groups that play by role, and sort |
 | `/raidnight balance` | Even out the damage of the two halves from the last boss pull, and sort |
+| `/raidnight swap` | Trade the two halves of the groups that play in the layout |
 | `/raidnight invite` | Invite players on the list who are not in the raid |
 | `/raidnight send` | Send the boss layouts of the raid in the dropdown to the raid |
 | `/raidnight stop` | Stop a sort in progress |

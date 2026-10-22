@@ -99,6 +99,9 @@ if locale == "deDE" then
   L["Received boss layouts from %s."] = "Boss-Aufstellungen von %s erhalten."
   L["%s sent layouts from a newer version of Raidnight Helper. Update the addon to receive them."] = "%s hat Aufstellungen aus einer neueren Version von Raidnight Helper gesendet. Aktualisiere das Addon, um sie zu empfangen."
   L["The boss list is not loaded yet. Try again in a moment."] = "Die Bossliste ist noch nicht geladen. Versuche es gleich noch einmal."
+  L["The lists have more players than groups 1-%d can hold."] = "Die Listen haben mehr Spieler, als Gruppe 1-%d fassen kann."
+  L["Swap halves"] = "Hälften tauschen"
+  L["Groups %s and %s traded places."] = "Gruppe %s und %s haben die Plätze getauscht."
 elseif locale == "esES" or locale == "esMX" then
   L["%s is in both group %d and %d."] = "%s está en el grupo %d y en el grupo %d."
   L["Invalid group number %d (must be 1-%d)."] = "Número de grupo %d no válido (debe ser 1-%d)."
@@ -186,6 +189,9 @@ elseif locale == "esES" or locale == "esMX" then
   L["Received boss layouts from %s."] = "Composiciones de jefes recibidas de %s."
   L["%s sent layouts from a newer version of Raidnight Helper. Update the addon to receive them."] = "%s envió composiciones de una versión más reciente de Raidnight Helper. Actualiza el addon para recibirlas."
   L["The boss list is not loaded yet. Try again in a moment."] = "La lista de jefes aún no se ha cargado. Inténtalo de nuevo en un momento."
+  L["The lists have more players than groups 1-%d can hold."] = "Las listas tienen más jugadores de los que caben en los grupos 1-%d."
+  L["Swap halves"] = "Intercambiar mitades"
+  L["Groups %s and %s traded places."] = "Los grupos %s y %s intercambiaron sus puestos."
 elseif locale == "frFR" then
   L["%s is in both group %d and %d."] = "%s est à la fois dans le groupe %d et le groupe %d."
   L["Invalid group number %d (must be 1-%d)."] = "Numéro de groupe %d invalide (doit être entre 1 et %d)."
@@ -273,6 +279,9 @@ elseif locale == "frFR" then
   L["Received boss layouts from %s."] = "Compositions des boss reçues de %s."
   L["%s sent layouts from a newer version of Raidnight Helper. Update the addon to receive them."] = "%s a envoyé des compositions d'une version plus récente de Raidnight Helper. Mettez l'addon à jour pour les recevoir."
   L["The boss list is not loaded yet. Try again in a moment."] = "La liste des boss n'est pas encore chargée. Réessayez dans un instant."
+  L["The lists have more players than groups 1-%d can hold."] = "Les listes comptent plus de joueurs que les groupes 1-%d ne peuvent en contenir."
+  L["Swap halves"] = "Échanger les moitiés"
+  L["Groups %s and %s traded places."] = "Les groupes %s et %s ont échangé leurs places."
 elseif locale == "itIT" then
   L["%s is in both group %d and %d."] = "%s è sia nel gruppo %d che nel gruppo %d."
   L["Invalid group number %d (must be 1-%d)."] = "Numero di gruppo %d non valido (deve essere 1-%d)."
@@ -360,6 +369,9 @@ elseif locale == "itIT" then
   L["Received boss layouts from %s."] = "Formazioni dei boss ricevute da %s."
   L["%s sent layouts from a newer version of Raidnight Helper. Update the addon to receive them."] = "%s ha inviato formazioni da una versione più recente di Raidnight Helper. Aggiorna l'addon per riceverle."
   L["The boss list is not loaded yet. Try again in a moment."] = "L'elenco dei boss non è ancora caricato. Riprova tra un momento."
+  L["The lists have more players than groups 1-%d can hold."] = "Le liste hanno più giocatori di quanti ne contengano i gruppi 1-%d."
+  L["Swap halves"] = "Scambia metà"
+  L["Groups %s and %s traded places."] = "I gruppi %s e %s si sono scambiati di posto."
 elseif locale == "koKR" then
   L["%s is in both group %d and %d."] = "%s 님이 %d파티와 %d파티에 모두 있습니다."
   L["Invalid group number %d (must be 1-%d)."] = "잘못된 파티 번호 %d (1-%d 사이여야 합니다)."
@@ -447,6 +459,9 @@ elseif locale == "koKR" then
   L["Received boss layouts from %s."] = "%s에게서 보스 편성을 받았습니다."
   L["%s sent layouts from a newer version of Raidnight Helper. Update the addon to receive them."] = "%s 님이 더 새로운 버전의 Raidnight Helper에서 편성을 보냈습니다. 받으려면 애드온을 업데이트하세요."
   L["The boss list is not loaded yet. Try again in a moment."] = "보스 목록이 아직 로드되지 않았습니다. 잠시 후 다시 시도하세요."
+  L["The lists have more players than groups 1-%d can hold."] = "목록의 플레이어가 1-%d파티에 들어갈 수 있는 수보다 많습니다."
+  L["Swap halves"] = "절반 교체"
+  L["Groups %s and %s traded places."] = "%s 파티와 %s 파티의 자리를 바꿨습니다."
 elseif locale == "ptBR" then
   L["%s is in both group %d and %d."] = "%s está no grupo %d e no grupo %d."
   L["Invalid group number %d (must be 1-%d)."] = "Número de grupo %d inválido (deve ser 1-%d)."
@@ -534,6 +549,9 @@ elseif locale == "ptBR" then
   L["Received boss layouts from %s."] = "Formações dos chefes recebidas de %s."
   L["%s sent layouts from a newer version of Raidnight Helper. Update the addon to receive them."] = "%s enviou formações de uma versão mais nova do Raidnight Helper. Atualize o addon para recebê-las."
   L["The boss list is not loaded yet. Try again in a moment."] = "A lista de chefes ainda não foi carregada. Tente de novo em instantes."
+  L["The lists have more players than groups 1-%d can hold."] = "As listas têm mais jogadores do que cabem nos grupos 1-%d."
+  L["Swap halves"] = "Trocar metades"
+  L["Groups %s and %s traded places."] = "Os grupos %s e %s trocaram de lugar."
 elseif locale == "ruRU" then
   L["%s is in both group %d and %d."] = "%s указан и в группе %d, и в группе %d."
   L["Invalid group number %d (must be 1-%d)."] = "Неверный номер группы %d (должен быть 1-%d)."
@@ -621,6 +639,9 @@ elseif locale == "ruRU" then
   L["Received boss layouts from %s."] = "Получены расстановки боссов от %s."
   L["%s sent layouts from a newer version of Raidnight Helper. Update the addon to receive them."] = "%s отправил(а) расстановки из более новой версии Raidnight Helper. Обновите аддон, чтобы получить их."
   L["The boss list is not loaded yet. Try again in a moment."] = "Список боссов ещё не загружен. Попробуйте ещё раз чуть позже."
+  L["The lists have more players than groups 1-%d can hold."] = "В списках больше игроков, чем вмещают группы 1-%d."
+  L["Swap halves"] = "Поменять половины"
+  L["Groups %s and %s traded places."] = "Группы %s и %s поменялись местами."
 elseif locale == "zhCN" then
   L["%s is in both group %d and %d."] = "%s 同时在第%d小队和第%d小队中。"
   L["Invalid group number %d (must be 1-%d)."] = "无效的小队编号 %d（必须为 1-%d）。"
@@ -708,6 +729,9 @@ elseif locale == "zhCN" then
   L["Received boss layouts from %s."] = "已收到 %s 发送的首领分组。"
   L["%s sent layouts from a newer version of Raidnight Helper. Update the addon to receive them."] = "%s 发送的分组来自更新版本的 Raidnight Helper。请更新插件以接收。"
   L["The boss list is not loaded yet. Try again in a moment."] = "首领列表尚未加载。请稍后再试。"
+  L["The lists have more players than groups 1-%d can hold."] = "列表中的玩家超过了第1-%d小队的容量。"
+  L["Swap halves"] = "交换两半"
+  L["Groups %s and %s traded places."] = "%s队和%s队已交换位置。"
 elseif locale == "zhTW" then
   L["%s is in both group %d and %d."] = "%s 同時在第%d小隊和第%d小隊中。"
   L["Invalid group number %d (must be 1-%d)."] = "無效的小隊編號 %d（必須為 1-%d）。"
@@ -794,4 +818,7 @@ elseif locale == "zhTW" then
   L["Received boss layouts from %s."] = "已收到 %s 傳送的首領分組。"
   L["%s sent layouts from a newer version of Raidnight Helper. Update the addon to receive them."] = "%s 傳送的分組來自較新版本的 Raidnight Helper。請更新插件以接收。"
   L["The boss list is not loaded yet. Try again in a moment."] = "首領列表尚未載入。請稍後再試。"
+  L["The lists have more players than groups 1-%d can hold."] = "清單中的玩家超過了第1-%d小隊的容量。"
+  L["Swap halves"] = "交換兩半"
+  L["Groups %s and %s traded places."] = "%s隊和%s隊已交換位置。"
 end
